@@ -316,6 +316,21 @@
         gap: 16px;
       }
 
+      @media (max-width: 780px) {
+        .preview-grid {
+          grid-auto-flow: column;
+          grid-auto-columns: minmax(220px, 75vw);
+          grid-template-columns: none;
+          overflow-x: auto;
+          padding-bottom: 8px;
+          scroll-snap-type: x mandatory;
+        }
+
+        .preview-card {
+          scroll-snap-align: start;
+        }
+      }
+
       .preview-wrap {
         position: relative;
         min-height: 180px;
@@ -615,7 +630,7 @@
       <section class="panel">
         <div class="panel-head">
           <div></div>
-          <button class="zip" id="downloadBtn" disabled style="display: none">Скачать ZIP</button>
+          <button class="zip" id="downloadBtn" disabled style="display: none">Скачать</button>
         </div>
         <div class="preview-wrap">
           <div id="preview" class="preview-grid"></div>
@@ -690,6 +705,10 @@
         pendingImageIndex: null,
         pendingImageMode: null,
       };
+
+      function isMobileDevice() {
+        return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
 
       const palettes = {
         linen: {
@@ -998,31 +1017,34 @@
         let marginX = w * 0.12;
         let marginY = h * 0.18;
         let maxWidth = w - marginX * 2;
-        let maxHeight = h - marginY * 2;
+        const footerSafe = Math.max(32, Math.round(h * 0.08));
+        let maxHeight = h - marginY * 2 - footerSafe;
 
         if (slideImage && slideImage.mode) {
           if (slideImage.mode === "top") {
             drawCoverImageInRect(ctx, slideImage.img, { x: 0, y: 0, w, h: h / 2 });
             marginY = h * 0.55;
-            maxHeight = h - marginY - h * 0.08;
+            maxHeight = h - marginY - h * 0.08 - footerSafe * 0.6;
           } else if (slideImage.mode === "bottom") {
             drawCoverImageInRect(ctx, slideImage.img, { x: 0, y: h / 2, w, h: h / 2 });
             marginY = h * 0.12;
-            maxHeight = h * 0.35;
+            maxHeight = h * 0.35 - footerSafe * 0.4;
           } else if (slideImage.mode === "left") {
             drawCoverImageInRect(ctx, slideImage.img, { x: 0, y: 0, w: w / 2, h });
             marginX = w * 0.58;
             maxWidth = w - marginX - w * 0.08;
+            maxHeight = h - marginY * 2 - footerSafe;
           } else if (slideImage.mode === "right") {
             drawCoverImageInRect(ctx, slideImage.img, { x: w / 2, y: 0, w: w / 2, h });
             marginX = w * 0.12;
             maxWidth = w * 0.35;
+            maxHeight = h - marginY * 2 - footerSafe;
           } else if (slideImage.mode === "full") {
             if (!isTitle) {
               marginX = w * 0.12;
               marginY = h * 0.12;
               maxWidth = w * 0.76;
-              maxHeight = h * 0.62;
+              maxHeight = h * 0.62 - footerSafe * 0.5;
             }
           }
         }
@@ -1040,8 +1062,13 @@
           drawImageModeHint(ctx, rect, labelMap[slideImage.mode] || "Фото", accent);
         }
 
-        let fontSize = Math.round(Math.min(w, h) * (isTitle ? 0.075 : 0.05));
-        const minFont = Math.round(Math.min(w, h) * (isTitle ? 0.048 : 0.034));
+        const needsTightText =
+          slideImage &&
+          (slideImage.mode === "left" || slideImage.mode === "right" || slideImage.mode === "top" || slideImage.mode === "bottom");
+        const bodyScale = needsTightText ? 0.043 : 0.05;
+        const bodyMin = needsTightText ? 0.03 : 0.034;
+        let fontSize = Math.round(Math.min(w, h) * (isTitle ? 0.075 : bodyScale));
+        const minFont = Math.round(Math.min(w, h) * (isTitle ? 0.048 : bodyMin));
         let lines = [];
 
         while (fontSize >= minFont) {
@@ -1100,7 +1127,7 @@
         const footerSize = Math.round(fontSize * 0.45);
         ctx.font = `${footerSize}px "Manrope", sans-serif`;
         ctx.fillStyle = state.palette.muted;
-        const footerY = h - marginY * 0.6;
+        const footerY = h - Math.max(20, Math.round(h * 0.06));
         const slideText = `Слайд ${index + 1} / ${total}`;
         ctx.fillText(slideText, marginX, footerY);
 
@@ -1175,6 +1202,29 @@
         link.click();
         link.remove();
         URL.revokeObjectURL(link.href);
+      }
+
+      async function downloadImagesIndividually() {
+        if (!state.slides.length && !state.title) return;
+        const { w, h } = state.size;
+        const allSlides =
+          state.mode === "cover"
+            ? [state.title || (state.slides[0] || "")].filter(Boolean)
+            : [state.title, ...state.slides, state.cta].filter(Boolean);
+
+        for (let i = 0; i < allSlides.length; i++) {
+          const canvas = document.createElement("canvas");
+          const slideImage = state.slideImages[i];
+          drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+          const link = document.createElement("a");
+          link.href = dataUrl;
+          link.download = `slide-${i + 1}_${w}x${h}.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          await new Promise((r) => setTimeout(r, 200));
+        }
       }
 
       function buildPrompt() {
@@ -1376,7 +1426,13 @@
         setTimeout(() => (copyPromptBtn.textContent = "Скопировать промпт"), 1500);
       });
 
-      downloadBtn.addEventListener("click", downloadZip);
+      downloadBtn.addEventListener("click", () => {
+        if (isMobileDevice()) {
+          downloadImagesIndividually();
+        } else {
+          downloadZip();
+        }
+      });
     </script>
   </body>
 </html>
