@@ -318,9 +318,9 @@
 
       @media (max-width: 780px) {
         .preview-grid {
-          grid-auto-flow: column;
-          grid-auto-columns: minmax(220px, 75vw);
-          grid-template-columns: none;
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 12px;
           overflow-x: auto;
           padding-bottom: 8px;
           scroll-snap-type: x mandatory;
@@ -328,6 +328,8 @@
 
         .preview-card {
           scroll-snap-align: start;
+          flex: 0 0 88vw;
+          max-width: 88vw;
         }
       }
 
