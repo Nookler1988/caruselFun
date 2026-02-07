@@ -1,0 +1,1382 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IG Carousel Maker</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&family=Inter:wght@400;600;700&family=Manrope:wght@400;600;800&family=Montserrat:wght@400;600;700&family=Rubik:wght@400;600;700&display=swap");
+
+      :root {
+        --bg-1: #0b0f19;
+        --bg-2: #151b2f;
+        --accent-1: #00d4ff;
+        --accent-2: #f4b86a;
+        --text: #f5f7ff;
+        --muted: #9aa3b2;
+        --card: rgba(255, 255, 255, 0.06);
+        --stroke: rgba(255, 255, 255, 0.12);
+        --light: #f7f6f2;
+        --dark: #0f1220;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Manrope", system-ui, -apple-system, sans-serif;
+        color: var(--text);
+        background: radial-gradient(1200px 800px at 15% 10%, #1d2450 0%, transparent 55%),
+          radial-gradient(900px 700px at 80% 20%, #2a0f2f 0%, transparent 60%),
+          linear-gradient(180deg, var(--bg-1), var(--bg-2));
+        min-height: 100vh;
+      }
+
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+        display: grid;
+        gap: 24px;
+      }
+
+      header {
+        display: grid;
+        gap: 10px;
+      }
+
+      header h1 {
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        font-size: clamp(28px, 4vw, 44px);
+        margin: 0;
+        letter-spacing: 0.3px;
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .panel {
+        display: grid;
+        gap: 16px;
+        padding: 18px;
+        border-radius: 18px;
+        background: var(--card);
+        border: 1px solid var(--stroke);
+        backdrop-filter: blur(14px);
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .controls {
+        display: grid;
+        gap: 16px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 180px;
+        resize: vertical;
+        border-radius: 14px;
+        border: 1px solid var(--stroke);
+        background: rgba(10, 13, 24, 0.7);
+        color: var(--text);
+        padding: 14px 16px;
+        font-size: 16px;
+        line-height: 1.5;
+        outline: none;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--stroke);
+        background: rgba(10, 13, 24, 0.7);
+        color: var(--text);
+        padding: 10px 12px;
+        font-size: 14px;
+        outline: none;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      select,
+      button {
+        border-radius: 12px;
+        border: 1px solid var(--stroke);
+        background: rgba(14, 18, 32, 0.85);
+        color: var(--text);
+        padding: 10px 14px;
+        font-size: 15px;
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, var(--accent-1), #8bf0ff);
+        color: #0b0f19;
+        font-weight: 700;
+        border: none;
+      }
+
+      button.secondary {
+        border: 1px solid rgba(0, 212, 255, 0.4);
+        color: var(--accent-1);
+      }
+
+      button.ghost {
+        border: 1px solid var(--stroke);
+        color: var(--muted);
+        background: rgba(14, 18, 32, 0.5);
+      }
+
+      button.zip {
+        border: 1px dashed rgba(0, 212, 255, 0.35);
+        color: #cfeaff;
+        background: rgba(8, 12, 24, 0.65);
+        font-weight: 600;
+      }
+
+      .meta {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .picker {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+        gap: 8px;
+      }
+
+      .chip {
+        display: grid;
+        gap: 4px;
+        padding: 8px;
+        border-radius: 12px;
+        border: 1px solid var(--stroke);
+        background: rgba(14, 18, 32, 0.85);
+        color: var(--text);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .chip.active {
+        border-color: rgba(0, 212, 255, 0.5);
+        box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+      }
+
+      .layout-thumb,
+      .color-thumb {
+        height: 32px;
+        border-radius: 10px;
+        border: 1px solid var(--stroke);
+        background: #f6f3ee;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .layout-thumb[data-layout="line"]::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        width: 22px;
+        height: 3px;
+        background: #141724;
+        border-radius: 999px;
+      }
+
+      .layout-thumb[data-layout="frame"]::before {
+        content: "";
+        position: absolute;
+        inset: 5px;
+        border: 1px solid rgba(20, 23, 36, 0.5);
+        border-radius: 8px;
+      }
+
+      .layout-thumb[data-layout="split"]::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 34%;
+        background: rgba(47, 128, 237, 0.25);
+      }
+
+      .layout-thumb[data-layout="grid"] {
+        background-image: repeating-linear-gradient(
+            90deg,
+            rgba(17, 19, 31, 0.1),
+            rgba(17, 19, 31, 0.1) 1px,
+            transparent 1px,
+            transparent 9px
+          ),
+          repeating-linear-gradient(
+            0deg,
+            rgba(17, 19, 31, 0.1),
+            rgba(17, 19, 31, 0.1) 1px,
+            transparent 1px,
+            transparent 9px
+          );
+      }
+
+      .layout-thumb[data-layout="pill"]::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 8px;
+        width: 60%;
+        height: 10px;
+        background: rgba(47, 128, 237, 0.3);
+        border-radius: 999px;
+      }
+
+      .layout-thumb[data-layout="corner"]::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        border-top: 26px solid rgba(47, 128, 237, 0.3);
+        border-right: 36px solid transparent;
+      }
+
+      .color-thumb[data-palette="linen"] {
+        background: linear-gradient(135deg, #fbf8f3, #e6e1d6);
+      }
+
+      .color-thumb[data-palette="ice"] {
+        background: linear-gradient(135deg, #f3f7fb, #dfe9f8);
+      }
+
+      .color-thumb[data-palette="sand"] {
+        background: linear-gradient(135deg, #fbf6ee, #ecd6be);
+      }
+
+      .color-thumb[data-palette="mint"] {
+        background: linear-gradient(135deg, #f2fbf7, #c9f0df);
+      }
+
+      .color-thumb[data-palette="rose"] {
+        background: linear-gradient(135deg, #fff5f7, #ffd0dc);
+      }
+
+      .color-thumb[data-palette="midnight"] {
+        background: linear-gradient(135deg, #f4f6fb, #c8d3f6);
+      }
+
+      .color-thumb[data-underlay="white"] {
+        background: linear-gradient(135deg, #ffffff, #f1f1f1);
+      }
+
+      .color-thumb[data-underlay="cream"] {
+        background: linear-gradient(135deg, #fff7e8, #f3e3c8);
+      }
+
+      .color-thumb[data-underlay="mist"] {
+        background: linear-gradient(135deg, #eef3ff, #dfe7f7);
+      }
+
+      .color-thumb[data-underlay="mint"] {
+        background: linear-gradient(135deg, #eefaf4, #d7f1e3);
+      }
+
+      .color-thumb[data-underlay="charcoal"] {
+        background: linear-gradient(135deg, #1b1f2a, #0f1219);
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        min-width: 240px;
+      }
+
+      .field label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+      }
+
+      .preview-wrap {
+        position: relative;
+        min-height: 180px;
+      }
+
+      .preview-card {
+        background: rgba(12, 16, 28, 0.85);
+        border-radius: 16px;
+        padding: 10px;
+        border: 1px solid var(--stroke);
+        cursor: pointer;
+      }
+
+      .preview-card canvas {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 10px;
+      }
+
+      .empty {
+        color: var(--muted);
+        text-align: center;
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(8, 10, 18, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        padding: 24px;
+      }
+
+      .modal.open {
+        display: flex;
+      }
+
+      .modal-card {
+        width: min(520px, 90vw);
+        background: rgba(14, 18, 32, 0.95);
+        border: 1px solid var(--stroke);
+        border-radius: 16px;
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .modal-card h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .option-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .option-card {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border-radius: 14px;
+        border: 1px solid rgba(0, 212, 255, 0.35);
+        background: rgba(10, 14, 26, 0.7);
+        color: #cfeaff;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .option-card.muted {
+        border-color: var(--stroke);
+        color: var(--muted);
+      }
+
+      .option-thumb {
+        height: 58px;
+        border-radius: 10px;
+        border: 1px solid var(--stroke);
+        background: #0f1426;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .option-thumb::after {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: 8px;
+        border: 1px dashed rgba(0, 212, 255, 0.5);
+      }
+
+      .option-thumb.full::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 212, 255, 0.12);
+      }
+
+      .option-thumb.top::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        height: 50%;
+        background: rgba(0, 212, 255, 0.12);
+      }
+
+      .option-thumb.bottom::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        height: 50%;
+        background: rgba(0, 212, 255, 0.12);
+      }
+
+      .option-thumb.left::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 50%;
+        background: rgba(0, 212, 255, 0.12);
+      }
+
+      .option-thumb.right::before {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 50%;
+        background: rgba(0, 212, 255, 0.12);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>Карусели из текста</h1>
+        <p>Вставьте текст, приложение разобьет его на слайды по 120 символов и соберет JPG‑карусель.</p>
+      </header>
+
+      <section class="panel controls">
+        <textarea id="jsonInput" placeholder="Вставьте JSON от ИИ здесь..."></textarea>
+        <div class="row">
+          <button class="primary" id="fromJsonBtn">Сгенерировать</button>
+          <button class="ghost" id="copyPromptBtn">📋 Скопировать промпт</button>
+        </div>
+        <div class="row">
+          <label class="meta">
+            Режим:
+            <select id="modeSelect">
+              <option value="carousel" selected>Карусель</option>
+              <option value="cover">Обложка</option>
+            </select>
+          </label>
+          <label class="meta">
+            Размер:
+            <select id="sizeSelect">
+              <option value="800x1000">800 × 1000</option>
+              <option value="1080x1080">1080 × 1080</option>
+              <option value="1080x1920">1080 × 1920</option>
+              <option value="1350x1080">1350 × 1080</option>
+            </select>
+          </label>
+          <label class="meta">
+            Шрифт:
+            <select id="fontSelect">
+              <option value="Golos Text">Golos Text</option>
+              <option value="Manrope" selected>Manrope</option>
+              <option value="Inter">Inter</option>
+              <option value="Rubik">Rubik</option>
+              <option value="Montserrat">Montserrat</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <div class="field" style="min-width: 100%">
+            <label>Тема (клик)</label>
+            <div class="picker" id="layoutPicker">
+              <button class="chip active" data-layout="line" type="button">
+                <div class="layout-thumb" data-layout="line"></div>
+                Line
+              </button>
+              <button class="chip" data-layout="frame" type="button">
+                <div class="layout-thumb" data-layout="frame"></div>
+                Frame
+              </button>
+              <button class="chip" data-layout="split" type="button">
+                <div class="layout-thumb" data-layout="split"></div>
+                Split
+              </button>
+              <button class="chip" data-layout="grid" type="button">
+                <div class="layout-thumb" data-layout="grid"></div>
+                Grid
+              </button>
+              <button class="chip" data-layout="pill" type="button">
+                <div class="layout-thumb" data-layout="pill"></div>
+                Pill
+              </button>
+              <button class="chip" data-layout="corner" type="button">
+                <div class="layout-thumb" data-layout="corner"></div>
+                Corner
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="min-width: 100%">
+            <label>Цвет (клик)</label>
+            <div class="picker" id="colorPicker">
+              <button class="chip" data-palette="linen" type="button">
+                <div class="color-thumb" data-palette="linen"></div>
+                Linen
+              </button>
+              <button class="chip" data-palette="ice" type="button">
+                <div class="color-thumb" data-palette="ice"></div>
+                Ice
+              </button>
+              <button class="chip" data-palette="sand" type="button">
+                <div class="color-thumb" data-palette="sand"></div>
+                Sand
+              </button>
+              <button class="chip" data-palette="mint" type="button">
+                <div class="color-thumb" data-palette="mint"></div>
+                Mint
+              </button>
+              <button class="chip" data-palette="rose" type="button">
+                <div class="color-thumb" data-palette="rose"></div>
+                Rose
+              </button>
+              <button class="chip active" data-palette="midnight" type="button">
+                <div class="color-thumb" data-palette="midnight"></div>
+                Midnight
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="ctaInput">Призыв подписаться (ссылка/ник)</label>
+            <input id="ctaInput" type="text" placeholder="@username или https://..." />
+          </div>
+          <div class="field">
+            <label for="ctaTextInput">Текст призыва</label>
+            <input id="ctaTextInput" type="text" value="Подпишитесь на" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="min-width: 100%">
+            <label>Цвет подложки заголовка (при фото)</label>
+            <div class="picker" id="underlayPicker">
+              <button class="chip active" data-underlay="white" type="button">
+                <div class="color-thumb" data-underlay="white"></div>
+                White
+              </button>
+              <button class="chip" data-underlay="cream" type="button">
+                <div class="color-thumb" data-underlay="cream"></div>
+                Cream
+              </button>
+              <button class="chip" data-underlay="mist" type="button">
+                <div class="color-thumb" data-underlay="mist"></div>
+                Mist
+              </button>
+              <button class="chip" data-underlay="mint" type="button">
+                <div class="color-thumb" data-underlay="mint"></div>
+                Mint
+              </button>
+              <button class="chip" data-underlay="charcoal" type="button">
+                <div class="color-thumb" data-underlay="charcoal"></div>
+                Charcoal
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div></div>
+          <button class="zip" id="downloadBtn" disabled style="display: none">Скачать ZIP</button>
+        </div>
+        <div class="preview-wrap">
+          <div id="preview" class="preview-grid"></div>
+          <div id="empty" class="empty">Слайды появятся здесь</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal" id="imageModal" aria-hidden="true">
+      <div class="modal-card">
+        <h3>Фото на слайд</h3>
+        <div class="option-grid">
+          <button class="option-card" data-mode="full">
+            <div class="option-thumb full"></div>
+            На весь слайд
+          </button>
+          <button class="option-card" data-mode="top">
+            <div class="option-thumb top"></div>
+            Сверху 1/2
+          </button>
+          <button class="option-card" data-mode="bottom">
+            <div class="option-thumb bottom"></div>
+            Снизу 1/2
+          </button>
+          <button class="option-card" data-mode="left">
+            <div class="option-thumb left"></div>
+            Слева 1/2
+          </button>
+          <button class="option-card" data-mode="right">
+            <div class="option-thumb right"></div>
+            Справа 1/2
+          </button>
+          <button class="option-card muted" data-mode="remove">
+            <div class="option-thumb"></div>
+            Убрать фото
+          </button>
+        </div>
+        <button class="ghost" id="closeModalBtn">Закрыть</button>
+      </div>
+    </div>
+
+    <input id="slideImageInput" type="file" accept="image/*" style="display: none" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+    <script>
+      const jsonInput = document.getElementById("jsonInput");
+      const modeSelect = document.getElementById("modeSelect");
+      const sizeSelect = document.getElementById("sizeSelect");
+      const fontSelect = document.getElementById("fontSelect");
+      const underlayPicker = document.getElementById("underlayPicker");
+      const layoutPicker = document.getElementById("layoutPicker");
+      const colorPicker = document.getElementById("colorPicker");
+      const fromJsonBtn = document.getElementById("fromJsonBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const copyPromptBtn = document.getElementById("copyPromptBtn");
+      const preview = document.getElementById("preview");
+      const empty = document.getElementById("empty");
+      const ctaInput = document.getElementById("ctaInput");
+      const ctaTextInput = document.getElementById("ctaTextInput");
+      const imageModal = document.getElementById("imageModal");
+      const closeModalBtn = document.getElementById("closeModalBtn");
+      const slideImageInput = document.getElementById("slideImageInput");
+
+      const state = {
+        slides: [],
+        size: { w: 1080, h: 1080 },
+        title: "",
+        fontFamily: "Manrope",
+        mode: "carousel",
+        underlay: "white",
+        slideImages: {},
+        pendingImageIndex: null,
+        pendingImageMode: null,
+      };
+
+      const palettes = {
+        linen: {
+          bgLight: "#fbf8f3",
+          bgDark: "#141724",
+          text: "#11131f",
+          muted: "rgba(17, 19, 31, 0.55)",
+          accents: ["#2f80ed", "#f2c14e", "#0fa3b1", "#f26419"],
+        },
+        ice: {
+          bgLight: "#f3f7fb",
+          bgDark: "#12151f",
+          text: "#10121a",
+          muted: "rgba(16, 18, 26, 0.55)",
+          accents: ["#3a86ff", "#4cc9f0", "#5e60ce", "#72efdd"],
+        },
+        sand: {
+          bgLight: "#fbf6ee",
+          bgDark: "#18130f",
+          text: "#17120f",
+          muted: "rgba(23, 18, 15, 0.55)",
+          accents: ["#b5651d", "#e09f3e", "#9b2226", "#6f1d1b"],
+        },
+        mint: {
+          bgLight: "#f2fbf7",
+          bgDark: "#0f1a16",
+          text: "#0f1a16",
+          muted: "rgba(15, 26, 22, 0.55)",
+          accents: ["#2d9cdb", "#27ae60", "#6fcf97", "#16a085"],
+        },
+        rose: {
+          bgLight: "#fff5f7",
+          bgDark: "#1c1115",
+          text: "#1c1115",
+          muted: "rgba(28, 17, 21, 0.55)",
+          accents: ["#ff5d8f", "#f28482", "#f6bd60", "#9b5de5"],
+        },
+        midnight: {
+          bgLight: "#f4f6fb",
+          bgDark: "#0b1020",
+          text: "#0b1020",
+          muted: "rgba(11, 16, 32, 0.55)",
+          accents: ["#3f37c9", "#4895ef", "#4cc9f0", "#b5179e"],
+        },
+      };
+
+      const underlays = {
+        white: { color: "rgba(255, 255, 255, 0.98)", text: "#11131f" },
+        cream: { color: "rgba(255, 247, 232, 0.98)", text: "#17120f" },
+        mist: { color: "rgba(238, 243, 255, 0.98)", text: "#10121a" },
+        mint: { color: "rgba(238, 250, 244, 0.98)", text: "#0f1a16" },
+        charcoal: { color: "rgba(20, 24, 32, 0.92)", text: "#f4f6fb" },
+      };
+
+      const layouts = {
+        line: "line",
+        frame: "frame",
+        split: "split",
+        grid: "grid",
+        pill: "pill",
+        corner: "corner",
+      };
+
+      function parseSize(value) {
+        const [w, h] = value.split("x").map(Number);
+        return { w, h };
+      }
+
+      function parseStyledSegments(text) {
+        const segments = [];
+        let buf = "";
+        let mode = "normal"; // normal | accent | bold
+        let i = 0;
+
+        const flush = () => {
+          if (buf) segments.push({ text: buf, mode });
+          buf = "";
+        };
+
+        while (i < text.length) {
+          const ch = text[i];
+          const next = text[i + 1];
+
+          if (ch === "*" && next === "*") {
+            flush();
+            mode = mode === "bold" ? "normal" : "bold";
+            i += 2;
+            continue;
+          }
+
+          if (ch === "{") {
+            flush();
+            mode = "accent";
+            i += 1;
+            continue;
+          }
+
+          if (ch === "}") {
+            flush();
+            mode = "normal";
+            i += 1;
+            continue;
+          }
+
+          buf += ch;
+          i += 1;
+        }
+
+        flush();
+        return segments;
+      }
+
+      function segmentsToWords(segments) {
+        const words = [];
+        const stickToPrev = /^(?:[,.!:;?)]|[»”]|…)+$/;
+        segments.forEach((seg) => {
+          const parts = seg.text.split(/\s+/).filter(Boolean);
+          parts.forEach((word) =>
+            words.push({
+              text: word,
+              mode: seg.mode,
+              noSpaceBefore: stickToPrev.test(word),
+            })
+          );
+        });
+        return words;
+      }
+
+      function fontWeightFor(mode, isTitle) {
+        if (mode === "bold") return 800;
+        if (mode === "accent") return 700;
+        return isTitle ? 800 : 600;
+      }
+
+      function buildLinesFromWords(ctx, words, maxWidth, fontSize, fontFamily, isTitle) {
+        const lines = [];
+        let lineWords = [];
+        let lineWidth = 0;
+        const spaceWidth = ctx.measureText(" ").width;
+
+        words.forEach((word) => {
+          const weight = fontWeightFor(word.mode, isTitle);
+          ctx.font = `${weight} ${fontSize}px "${fontFamily}", sans-serif`;
+          const wordWidth = ctx.measureText(word.text).width;
+          const extra = lineWords.length && !word.noSpaceBefore ? spaceWidth : 0;
+          if (lineWidth + extra + wordWidth <= maxWidth || !lineWords.length) {
+            lineWords.push({ ...word, width: wordWidth, weight });
+            lineWidth += extra + wordWidth;
+          } else {
+            lines.push({ words: lineWords, width: lineWidth });
+            lineWords = [{ ...word, width: wordWidth, weight }];
+            lineWidth = wordWidth;
+          }
+        });
+
+        if (lineWords.length) {
+          lines.push({ words: lineWords, width: lineWidth });
+        }
+        return lines;
+      }
+
+      function pickAccent(text) {
+        const pool = state.palette.accents;
+        if (!pool || !pool.length) return "#2f80ed";
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) {
+          hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+        }
+        return pool[hash % pool.length];
+      }
+
+      function drawCoverImage(ctx, img, w, h) {
+        const scale = Math.max(w / img.width, h / img.height);
+        const drawW = img.width * scale;
+        const drawH = img.height * scale;
+        const dx = (w - drawW) / 2;
+        const dy = (h - drawH) / 2;
+        ctx.drawImage(img, dx, dy, drawW, drawH);
+      }
+
+      function drawCoverImageInRect(ctx, img, rect) {
+        const scale = Math.max(rect.w / img.width, rect.h / img.height);
+        const drawW = img.width * scale;
+        const drawH = img.height * scale;
+        const dx = rect.x + (rect.w - drawW) / 2;
+        const dy = rect.y + (rect.h - drawH) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rect.x, rect.y, rect.w, rect.h);
+        ctx.clip();
+        ctx.drawImage(img, dx, dy, drawW, drawH);
+        ctx.restore();
+      }
+
+      function getImageRect(mode, w, h) {
+        if (mode === "top") return { x: 0, y: 0, w, h: h / 2 };
+        if (mode === "bottom") return { x: 0, y: h / 2, w, h: h / 2 };
+        if (mode === "left") return { x: 0, y: 0, w: w / 2, h };
+        if (mode === "right") return { x: w / 2, y: 0, w: w / 2, h };
+        return { x: 0, y: 0, w, h };
+      }
+
+      function drawImageModeHint(ctx, rect, label, accent) {
+        ctx.save();
+        ctx.strokeStyle = `${accent}88`;
+        ctx.lineWidth = Math.max(2, Math.round(Math.min(rect.w, rect.h) * 0.01));
+        ctx.setLineDash([8, 6]);
+        ctx.strokeRect(rect.x + 6, rect.y + 6, rect.w - 12, rect.h - 12);
+        ctx.setLineDash([]);
+
+        const badgePaddingX = 10;
+        const badgePaddingY = 6;
+        ctx.font = `600 ${Math.max(12, Math.round(Math.min(rect.w, rect.h) * 0.04))}px "Manrope", sans-serif`;
+        const textW = ctx.measureText(label).width;
+        const badgeW = textW + badgePaddingX * 2;
+        const badgeH = Math.max(20, Math.round(Math.min(rect.w, rect.h) * 0.08));
+        const bx = rect.x + rect.w - badgeW - 12;
+        const by = rect.y + 12;
+        ctx.fillStyle = "rgba(11, 16, 32, 0.65)";
+        ctx.beginPath();
+        ctx.roundRect(bx, by, badgeW, badgeH, Math.round(badgeH / 2));
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, bx + badgePaddingX, by + badgeH / 2);
+        ctx.restore();
+      }
+
+      function drawSlide(canvas, text, index, total, isTitle, slideImage) {
+        const { w, h } = state.size;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+
+        // Background
+        if (slideImage && slideImage.mode === "full") {
+          drawCoverImage(ctx, slideImage.img, w, h);
+          if (isTitle) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.10)";
+            ctx.fillRect(0, 0, w, h);
+          }
+        } else {
+          ctx.fillStyle = state.palette.bgLight;
+          ctx.fillRect(0, 0, w, h);
+        }
+        const accent = pickAccent(state.title || text);
+        const gradient = ctx.createRadialGradient(w * 0.2, h * 0.15, 10, w * 0.2, h * 0.15, w * 0.9);
+        gradient.addColorStop(0, `${accent}1A`);
+        gradient.addColorStop(1, `${accent}10`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+
+        if (state.layout === layouts.line) {
+          ctx.fillStyle = state.palette.bgDark;
+          ctx.fillRect(w * 0.08, h * 0.08, w * 0.16, 6);
+          ctx.beginPath();
+          ctx.arc(w * 0.26, h * 0.083, 5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (state.layout === layouts.frame) {
+          ctx.strokeStyle = `${accent}55`;
+          ctx.lineWidth = Math.max(2, Math.round(w * 0.004));
+          ctx.strokeRect(w * 0.07, h * 0.07, w * 0.86, h * 0.86);
+        } else if (state.layout === layouts.split) {
+          ctx.fillStyle = `${accent}22`;
+          ctx.fillRect(0, 0, w * 0.32, h);
+          ctx.fillStyle = state.palette.bgDark;
+          ctx.fillRect(w * 0.08, h * 0.12, w * 0.1, 6);
+        } else if (state.layout === layouts.grid) {
+          ctx.strokeStyle = `${accent}33`;
+          ctx.lineWidth = 1;
+          const step = Math.max(24, Math.round(w * 0.06));
+          for (let x = step; x < w; x += step) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+          }
+          for (let y = step; y < h; y += step) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+          }
+        } else if (state.layout === layouts.pill) {
+          ctx.fillStyle = `${accent}26`;
+          const pillW = w * 0.38;
+          const pillH = h * 0.08;
+          const pillX = w * 0.08;
+          const pillY = h * 0.08;
+          ctx.beginPath();
+          ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+          ctx.fill();
+        } else if (state.layout === layouts.corner) {
+          ctx.fillStyle = `${accent}28`;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(w * 0.25, 0);
+          ctx.lineTo(0, h * 0.18);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Text layout
+        let marginX = w * 0.12;
+        let marginY = h * 0.18;
+        let maxWidth = w - marginX * 2;
+        let maxHeight = h - marginY * 2;
+
+        if (slideImage && slideImage.mode) {
+          if (slideImage.mode === "top") {
+            drawCoverImageInRect(ctx, slideImage.img, { x: 0, y: 0, w, h: h / 2 });
+            marginY = h * 0.55;
+            maxHeight = h - marginY - h * 0.08;
+          } else if (slideImage.mode === "bottom") {
+            drawCoverImageInRect(ctx, slideImage.img, { x: 0, y: h / 2, w, h: h / 2 });
+            marginY = h * 0.12;
+            maxHeight = h * 0.35;
+          } else if (slideImage.mode === "left") {
+            drawCoverImageInRect(ctx, slideImage.img, { x: 0, y: 0, w: w / 2, h });
+            marginX = w * 0.58;
+            maxWidth = w - marginX - w * 0.08;
+          } else if (slideImage.mode === "right") {
+            drawCoverImageInRect(ctx, slideImage.img, { x: w / 2, y: 0, w: w / 2, h });
+            marginX = w * 0.12;
+            maxWidth = w * 0.35;
+          } else if (slideImage.mode === "full") {
+            if (!isTitle) {
+              marginX = w * 0.12;
+              marginY = h * 0.12;
+              maxWidth = w * 0.76;
+              maxHeight = h * 0.62;
+            }
+          }
+        }
+
+        // Image placement hint (draw after image so it's visible)
+        if (slideImage) {
+          const rect = getImageRect(slideImage.mode, w, h);
+          const labelMap = {
+            full: "Фото: весь",
+            top: "Фото: верх",
+            bottom: "Фото: низ",
+            left: "Фото: лево",
+            right: "Фото: право",
+          };
+          drawImageModeHint(ctx, rect, labelMap[slideImage.mode] || "Фото", accent);
+        }
+
+        let fontSize = Math.round(Math.min(w, h) * (isTitle ? 0.075 : 0.05));
+        const minFont = Math.round(Math.min(w, h) * (isTitle ? 0.048 : 0.034));
+        let lines = [];
+
+        while (fontSize >= minFont) {
+          ctx.font = `${isTitle ? 800 : 600} ${fontSize}px "${state.fontFamily}", sans-serif`;
+          const segments = parseStyledSegments(text);
+          const words = segmentsToWords(segments);
+          lines = buildLinesFromWords(ctx, words, maxWidth, fontSize, state.fontFamily, isTitle);
+          const lineHeight = fontSize * 1.25;
+          if (lines.length * lineHeight <= maxHeight) break;
+          fontSize -= 2;
+        }
+
+        const hasPhoto = isTitle && slideImage && slideImage.mode === "full";
+        ctx.fillStyle = state.palette.text;
+        ctx.textBaseline = "top";
+        ctx.font = `${isTitle ? 800 : 600} ${fontSize}px "${state.fontFamily}", sans-serif`;
+        const lineHeight = fontSize * 1.25;
+        const blockHeight = lines.length * lineHeight;
+        let y = marginY + (maxHeight - blockHeight) / 2;
+
+        const linePaddingX = Math.max(14, Math.round(fontSize * 0.35));
+        const linePaddingY = Math.max(10, Math.round(fontSize * 0.22));
+        const lineGap = Math.round(fontSize * 0.28);
+
+        const spaceWidth = ctx.measureText(" ").width;
+        lines.forEach((line) => {
+          if (hasPhoto) {
+            const lineWidth = line.width;
+            const rectW = lineWidth + linePaddingX * 2;
+            const rectH = lineHeight + linePaddingY * 2;
+            const rectX = marginX - linePaddingX;
+            const rectY = y - linePaddingY;
+            const underlay = underlays[state.underlay] || underlays.white;
+            ctx.fillStyle = underlay.color;
+            ctx.beginPath();
+            ctx.roundRect(rectX, rectY, rectW, rectH, Math.max(10, Math.round(fontSize * 0.3)));
+            ctx.fill();
+          }
+
+          let x = marginX;
+          line.words.forEach((word, idx) => {
+            ctx.font = `${word.weight} ${fontSize}px "${state.fontFamily}", sans-serif`;
+            const underlay = underlays[state.underlay] || underlays.white;
+            const baseText = hasPhoto ? underlay.text : state.palette.text;
+            ctx.fillStyle = word.mode === "accent" ? accent : baseText;
+            if (idx > 0 && !word.noSpaceBefore) {
+              x += spaceWidth;
+            }
+            ctx.fillText(word.text, x, y);
+            x += word.width;
+          });
+          y += lineHeight + lineGap;
+        });
+
+        // Footer
+        const footerSize = Math.round(fontSize * 0.45);
+        ctx.font = `${footerSize}px "Manrope", sans-serif`;
+        ctx.fillStyle = state.palette.muted;
+        const footerY = h - marginY * 0.6;
+        const slideText = `Слайд ${index + 1} / ${total}`;
+        ctx.fillText(slideText, marginX, footerY);
+
+        const handle = ctaInput.value.trim();
+        if (handle) {
+          ctx.textAlign = "right";
+          ctx.fillText(handle, w - marginX, footerY);
+          ctx.textAlign = "left";
+        }
+      }
+
+      function normalizeAiResult(result) {
+        const title = (result.title || "").toString().slice(0, 60).trim();
+        const slidesRaw = Array.isArray(result.slides) ? result.slides : [];
+        const slides = slidesRaw
+          .map((s) => s.toString().replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .map((s) => (s.length > 200 ? s.slice(0, 197) + "..." : s));
+        return { title, slides };
+      }
+
+      function renderPreviews() {
+        preview.innerHTML = "";
+        if (!state.slides.length && !state.title) {
+          empty.style.display = "block";
+          downloadBtn.disabled = true;
+          downloadBtn.style.display = "none";
+          return;
+        }
+        empty.style.display = "none";
+        downloadBtn.style.display = "inline-flex";
+        const allSlides =
+          state.mode === "cover"
+            ? [state.title || (state.slides[0] || "")].filter(Boolean)
+            : [state.title, ...state.slides, state.cta].filter(Boolean);
+        allSlides.forEach((text, index) => {
+          const card = document.createElement("div");
+          card.className = "preview-card";
+          const canvas = document.createElement("canvas");
+          const slideImage = state.slideImages[index];
+          drawSlide(canvas, text, index, allSlides.length, index === 0, slideImage);
+          card.appendChild(canvas);
+          card.addEventListener("click", () => openImageModal(index));
+          preview.appendChild(card);
+        });
+        downloadBtn.disabled = false;
+      }
+
+      async function downloadZip() {
+        if (!state.slides.length && !state.title) return;
+        const zip = new JSZip();
+        const { w, h } = state.size;
+        const allSlides =
+          state.mode === "cover"
+            ? [state.title || (state.slides[0] || "")].filter(Boolean)
+            : [state.title, ...state.slides, state.cta].filter(Boolean);
+
+        for (let i = 0; i < allSlides.length; i++) {
+          const canvas = document.createElement("canvas");
+          const slideImage = state.slideImages[i];
+          drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+          const base64 = dataUrl.split(",")[1];
+          zip.file(`slide-${i + 1}_${w}x${h}.jpg`, base64, { base64: true });
+        }
+
+        const blob = await zip.generateAsync({ type: "blob" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `carousel_${w}x${h}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+      }
+
+      function buildPrompt() {
+        return `Ты — редактор каруселей для Instagram на русском языке.  
+Твоя задача — по заданной теме создать структуру карусели в формате JSON:  
+{"title":"...","slides":["...","..."]}
+
+Правила:  
+- title: до 60 символов, цепляющий, отражает суть темы.  
+- slides: от 3 до 8 смысловых блоков, каждый до 200 символов.  
+- Каждый блок — законченная мысль, без повторов, в стиле современного минимализма: ясно, лаконично, без воды.  
+- Не используй списки, нумерацию или эмодзи внутри смысловых блоков.  
+- Последний слайд обязательно должен быть призывом: «Подписывайся на Telegram-канал “Нескучный Нетворкинг” — ссылка в шапке профиля». Эта фраза должна быть полностью завершённой, не обрезанной и не перенесённой частично на следующий слайд (так как его нет).  
+- В тексте слайдов можно использовать следующие элементы форматирования:  
+  {текст} → акцентный цвет  
+  **текст** → просто жирный, без акцента  
+- Возвращай ТОЛЬКО валидный JSON, без пояснений и дополнительного текста.
+
+Тема:`;
+      }
+
+      function applyStateFromInputs() {
+        state.mode = modeSelect.value || "carousel";
+        state.size = parseSize(sizeSelect.value);
+        state.fontFamily = fontSelect.value || "Manrope";
+        const activeLayout = layoutPicker.querySelector(".chip.active")?.getAttribute("data-layout") || "line";
+        const activePalette = colorPicker.querySelector(".chip.active")?.getAttribute("data-palette") || "midnight";
+        const activeUnderlay = underlayPicker.querySelector(".chip.active")?.getAttribute("data-underlay") || "white";
+        state.palette = palettes[activePalette] || palettes.midnight;
+        state.layout = layouts[activeLayout] || layouts.line;
+        state.underlay = activeUnderlay;
+        const ctaTarget = ctaInput.value.trim();
+        const ctaText = ctaTextInput.value.trim();
+        state.cta = ctaTarget ? `${ctaText ? ctaText + " " : ""}${ctaTarget}`.trim() : "";
+      }
+
+      function openImageModal(index) {
+        state.pendingImageIndex = index;
+        imageModal.classList.add("open");
+        imageModal.setAttribute("aria-hidden", "false");
+      }
+
+      function closeImageModal() {
+        imageModal.classList.remove("open");
+        imageModal.setAttribute("aria-hidden", "true");
+        state.pendingImageIndex = null;
+        state.pendingImageMode = null;
+      }
+
+      fromJsonBtn.addEventListener("click", () => {
+        const raw = sanitizeJsonInput(jsonInput.value);
+        if (!raw) {
+          alert("Вставьте JSON.");
+          return;
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          const normalized = normalizeAiResult(parsed);
+          if (!normalized.title && !normalized.slides.length) {
+            alert("JSON без данных.");
+            return;
+          }
+          applyStateFromInputs();
+          state.title = normalized.title;
+          state.slides = normalized.slides;
+          state.slideImages = {};
+          renderPreviews();
+        } catch (err) {
+          alert("Некорректный JSON.");
+        }
+      });
+
+      function sanitizeJsonInput(input) {
+        if (!input) return "";
+        let text = input.replace(/^\uFEFF/, "").trim();
+        // remove ```json ``` wrappers
+        text = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+        // replace smart quotes with regular quotes
+        text = text
+          .replace(/[“”„‟]/g, '"')
+          .replace(/[‘’]/g, "'");
+        return text;
+      }
+
+      function setActivePicker(container, attr, value) {
+        const buttons = Array.from(container.querySelectorAll(".chip"));
+        buttons.forEach((btn) => {
+          const isActive = btn.getAttribute(`data-${attr}`) === value;
+          btn.classList.toggle("active", isActive);
+        });
+      }
+
+      layoutPicker.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-layout]");
+        if (!btn) return;
+        const value = btn.getAttribute("data-layout");
+        setActivePicker(layoutPicker, "layout", value);
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      colorPicker.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-palette]");
+        if (!btn) return;
+        const value = btn.getAttribute("data-palette");
+        setActivePicker(colorPicker, "palette", value);
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      underlayPicker.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-underlay]");
+        if (!btn) return;
+        const value = btn.getAttribute("data-underlay");
+        setActivePicker(underlayPicker, "underlay", value);
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      sizeSelect.addEventListener("change", () => {
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      modeSelect.addEventListener("change", () => {
+        if (state.mode === "cover") {
+          sizeSelect.value = "1350x1080";
+        }
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      fontSelect.addEventListener("change", () => {
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      imageModal.addEventListener("click", (event) => {
+        if (event.target === imageModal) closeImageModal();
+      });
+
+      closeModalBtn.addEventListener("click", closeImageModal);
+
+      imageModal.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-mode]");
+        if (!btn) return;
+        const mode = btn.getAttribute("data-mode");
+        if (mode === "remove") {
+          if (state.pendingImageIndex !== null) {
+            delete state.slideImages[state.pendingImageIndex];
+            renderPreviews();
+          }
+          closeImageModal();
+          return;
+        }
+        state.pendingImageMode = mode;
+        slideImageInput.value = "";
+        slideImageInput.click();
+      });
+
+      slideImageInput.addEventListener("change", () => {
+        const file = slideImageInput.files?.[0];
+        if (!file || state.pendingImageIndex === null || !state.pendingImageMode) {
+          closeImageModal();
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            state.slideImages[state.pendingImageIndex] = {
+              img,
+              mode: state.pendingImageMode,
+            };
+            renderPreviews();
+            closeImageModal();
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      copyPromptBtn.addEventListener("click", async () => {
+        const prompt = buildPrompt();
+        await navigator.clipboard.writeText(prompt);
+        copyPromptBtn.textContent = "Промпт скопирован";
+        setTimeout(() => (copyPromptBtn.textContent = "Скопировать промпт"), 1500);
+      });
+
+      downloadBtn.addEventListener("click", downloadZip);
+    </script>
+  </body>
+</html>
