@@ -1431,7 +1431,7 @@
           downloadBtn.style.backdropFilter = "blur(4px)";
           
           // Add download functionality
-          downloadBtn.addEventListener("click", (e) => {
+          downloadBtn.addEventListener("click", async (e) => {
             e.stopPropagation(); // Prevent opening image modal
             
             // Create temporary canvas to draw the slide
@@ -1444,13 +1444,49 @@
             // Redraw the slide on the temporary canvas
             drawSlide(tempCanvas, text, index, allSlides.length, index === 0, slideImage, isCta);
             
-            // Create download link
-            const link = document.createElement("a");
-            link.download = `slide-${index + 1}_${w}x${h}.jpg`;
-            link.href = tempCanvas.toDataURL("image/jpeg", 0.92);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Convert to blob for file system access
+            const imageData = tempCanvas.toDataURL("image/jpeg", 0.92);
+            const blob = await fetch(imageData).then(res => res.blob());
+            
+            // Check if File System Access API is supported
+            if ('showSaveFilePicker' in window) {
+              try {
+                // Open file save dialog
+                const handle = await showSaveFilePicker({
+                  suggestedName: `slide-${index + 1}_${w}x${h}.jpg`,
+                  types: [{
+                    description: 'JPEG Image',
+                    accept: { 'image/jpeg': ['.jpg', '.jpeg'] }
+                  }]
+                });
+                
+                // Write the file
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+              } catch (err) {
+                // Fallback if user cancels or other error occurs
+                if (err.name !== 'AbortError') {
+                  // Create download link as fallback
+                  const link = document.createElement("a");
+                  link.download = `slide-${index + 1}_${w}x${h}.jpg`;
+                  link.href = URL.createObjectURL(blob);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(link.href);
+                }
+              }
+            } else {
+              // Fallback for browsers that don't support File System Access API
+              const link = document.createElement("a");
+              link.download = `slide-${index + 1}_${w}x${h}.jpg`;
+              link.href = URL.createObjectURL(blob);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(link.href);
+            }
           });
           
           container.appendChild(downloadBtn);
