@@ -76,6 +76,50 @@
         gap: 12px;
       }
 
+      .step-panel {
+        display: grid;
+        gap: 12px;
+        padding: 24px;
+        border-radius: 18px;
+        background: var(--card);
+        border: 1px solid var(--stroke);
+        backdrop-filter: blur(14px);
+      }
+
+      .step-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent-1), #8bf0ff);
+        color: var(--dark);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+
+      .step-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .step-description {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+        padding-left: 56px;
+      }
+
       .controls {
         display: grid;
         gap: 16px;
@@ -338,20 +382,28 @@
           flex-wrap: nowrap;
           gap: 12px;
           overflow-x: auto;
-          padding-bottom: 8px;
+          padding: 8px 0 16px;
           scroll-snap-type: x mandatory;
+          /* Prevent horizontal scrollbar from affecting layout */
+          -webkit-overflow-scrolling: touch;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .preview-card {
           scroll-snap-align: start;
-          flex: 0 0 92vw;
-          max-width: 92vw;
+          flex: 0 0 calc(80vw - 30px); /* Show 20% of next card */
+          max-width: calc(80vw - 30px);
+          min-width: 180px;
         }
+        
       }
 
       .preview-wrap {
         position: relative;
         min-height: 180px;
+        overflow: hidden;
+        width: 100%;
       }
 
       .preview-card {
@@ -506,15 +558,38 @@
   <body>
     <div class="page">
       <header>
-        <h1>Карусели из текста</h1>
-        <p>Вставьте текст, приложение разобьет его на слайды по 120 символов и соберет JPG‑карусель.</p>
+        <h1>Генератор каруселей для Instagram</h1>
+        <p>Создавайте красивые карусели за 3 простых шага</p>
       </header>
 
-      <section class="panel controls">
+      <!-- Шаг 1 -->
+      <section class="panel step-panel">
+        <div class="step-header">
+          <div class="step-number">1</div>
+          <div class="step-title">Скопируй промпт</div>
+        </div>
+        <p class="step-description">Нажми кнопку ниже, чтобы скопировать промпт для ИИ</p>
+        <button class="primary" id="copyPromptBtn" style="height: 50px; font-size: 15px; padding: 0 22px; width: auto; display: inline-block; justify-self: start; background: linear-gradient(135deg, var(--accent-1), var(--accent-2));">📋 Скопировать промпт</button>
+      </section>
+
+      <!-- Шаг 2 -->
+      <section class="panel step-panel">
+        <div class="step-header">
+          <div class="step-number">2</div>
+          <div class="step-title">Вставь результат от ИИ и сгенерируй</div>
+        </div>
+        <p class="step-description">Отправь промпт в любую нейросеть (ChatGPT, Claude, Gemini), вставь полученный JSON и нажми кнопку</p>
         <textarea id="jsonInput" placeholder="Вставьте JSON от ИИ здесь..."></textarea>
-        <div class="row">
-          <button class="primary" id="fromJsonBtn">Сгенерировать</button>
-          <button class="ghost" id="copyPromptBtn">📋 Скопировать промпт</button>
+        <div class="step-header" style="margin-top: 16px;">
+          <div class="step-number">3</div>
+          <button class="primary" id="fromJsonBtn" style="height: 50px; font-size: 15px; padding: 0 22px; width: auto;">✨ Сгенерировать карусель</button>
+        </div>
+      </section>
+
+      <!-- Настройки -->
+      <section class="panel controls">
+        <div class="panel-head">
+          <h3 style="margin: 0; font-size: 16px;">Настройки оформления</h3>
         </div>
         <div class="row">
           <label class="meta">
@@ -615,6 +690,9 @@
             <label for="ctaTextInput">Текст призыва</label>
             <input id="ctaTextInput" type="text" value="Подпишитесь на" />
           </div>
+          <div class="field" style="align-self: flex-end; margin-bottom: 2px;">
+            <button id="applyCtaBtn" class="secondary" style="height: 40px;">Применить</button>
+          </div>
         </div>
         <div class="row">
           <div class="field" style="min-width: 100%">
@@ -645,14 +723,21 @@
         </div>
       </section>
 
+      <!-- Результат -->
       <section class="panel">
-        <div class="panel-head">
-          <div></div>
-          <button class="zip" id="downloadBtn" disabled style="display: none">Скачать</button>
+        <div class="panel-head" style="margin-bottom: 12px;">
+          <h3 style="margin: 0; font-size: 16px;">Готовые слайды</h3>
+          <button class="zip" id="downloadBtn" disabled style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #8A2BE2, #6A0DAD); border: none; color: white; font-size: 14px;">Скачать</button>
         </div>
         <div class="preview-wrap">
           <div id="preview" class="preview-grid"></div>
-          <div id="empty" class="empty">Слайды появятся здесь</div>
+          <div id="empty" class="empty">
+            <div style="display: grid; gap: 12px; text-align: center;">
+              <div style="font-size: 48px;">🎨</div>
+              <div>Здесь появятся ваши слайды</div>
+              <div style="font-size: 14px; opacity: 0.7;">Выполните 3 шага выше</div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -808,26 +893,33 @@
 
         while (i < text.length) {
           const ch = text[i];
-          const next = text[i + 1];
+          const rest = text.slice(i);
 
-          if (ch === "*" && next === "*") {
-            flush();
-            mode = mode === "bold" ? "normal" : "bold";
-            i += 2;
-            continue;
-          }
-
-          if (ch === "{") {
+          if (rest.startsWith("<accent>")) {
             flush();
             mode = "accent";
-            i += 1;
+            i += 8;
             continue;
           }
 
-          if (ch === "}") {
+          if (rest.startsWith("</accent>")) {
             flush();
             mode = "normal";
-            i += 1;
+            i += 9;
+            continue;
+          }
+
+          if (rest.startsWith("<bold>")) {
+            flush();
+            mode = "bold";
+            i += 6;
+            continue;
+          }
+
+          if (rest.startsWith("</bold>")) {
+            flush();
+            mode = "normal";
+            i += 7;
             continue;
           }
 
@@ -957,11 +1049,14 @@
         ctx.restore();
       }
 
-      function drawSlide(canvas, text, index, total, isTitle, slideImage) {
+      function drawSlide(canvas, text, index, total, isTitle, slideImage, isCta = false) {
         const { w, h } = state.size;
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext("2d");
+        
+        // Declare accent at the beginning for use throughout the function
+        const accent = pickAccent(state.title || text);
 
         // Background
         if (slideImage && slideImage.mode === "full") {
@@ -974,7 +1069,8 @@
           ctx.fillStyle = state.palette.bgLight;
           ctx.fillRect(0, 0, w, h);
         }
-        const accent = pickAccent(state.title || text);
+
+        // Apply the same radial gradient to all slides (including CTA)
         const gradient = ctx.createRadialGradient(w * 0.2, h * 0.15, 10, w * 0.2, h * 0.15, w * 0.9);
         gradient.addColorStop(0, `${accent}1A`);
         gradient.addColorStop(1, `${accent}10`);
@@ -1029,6 +1125,126 @@
           ctx.lineTo(0, h * 0.18);
           ctx.closePath();
           ctx.fill();
+        }
+
+        // CTA Slide - Same layout as other slides
+        if (isCta) {
+          // Use the same accent as calculated at the beginning of the function
+          // Apply layout based on selected theme (same as other slides)
+          if (state.layout === layouts.line) {
+            ctx.fillStyle = state.palette.bgDark;
+            ctx.fillRect(w * 0.08, h * 0.08, w * 0.16, 6);
+            ctx.beginPath();
+            ctx.arc(w * 0.26, h * 0.083, 5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (state.layout === layouts.frame) {
+            ctx.strokeStyle = `${accent}55`;
+            ctx.lineWidth = Math.max(2, Math.round(w * 0.004));
+            ctx.strokeRect(w * 0.07, h * 0.07, w * 0.86, h * 0.86);
+          } else if (state.layout === layouts.split) {
+            ctx.fillStyle = `${accent}22`;
+            ctx.fillRect(0, 0, w * 0.32, h);
+            ctx.fillStyle = state.palette.bgDark;
+            ctx.fillRect(w * 0.08, h * 0.12, w * 0.1, 6);
+          } else if (state.layout === layouts.grid) {
+            ctx.strokeStyle = `${accent}33`;
+            ctx.lineWidth = 1;
+            const step = Math.max(24, Math.round(w * 0.06));
+            for (let x = step; x < w; x += step) {
+              ctx.beginPath();
+              ctx.moveTo(x, 0);
+              ctx.lineTo(x, h);
+              ctx.stroke();
+            }
+            for (let y = step; y < h; y += step) {
+              ctx.beginPath();
+              ctx.moveTo(0, y);
+              ctx.lineTo(w, y);
+              ctx.stroke();
+            }
+          } else if (state.layout === layouts.pill) {
+            ctx.fillStyle = `${accent}26`;
+            const pillW = w * 0.38;
+            const pillH = h * 0.08;
+            const pillX = w * 0.08;
+            const pillY = h * 0.08;
+            ctx.beginPath();
+            ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+            ctx.fill();
+          } else if (state.layout === layouts.corner) {
+            ctx.fillStyle = `${accent}28`;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(w * 0.25, 0);
+            ctx.lineTo(0, h * 0.18);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // Use the same text layout as other slides instead of centered
+          let marginX = w * 0.12;
+          let marginY = h * 0.18;
+          let maxWidth = w - marginX * 2;
+          const footerSafe = Math.max(32, Math.round(h * 0.08));
+          let maxHeight = h - marginY * 2 - footerSafe;
+
+          const needsTightText = false; // CTA doesn't have image layout constraints
+          const bodyScale = needsTightText ? 0.043 : 0.05;
+          const bodyMin = needsTightText ? 0.03 : 0.034;
+          let fontSize = Math.round(Math.min(w, h) * bodyScale); // Use body font size, not title size
+          const minFont = Math.round(Math.min(w, h) * bodyMin);
+          let lines = [];
+
+          while (fontSize >= minFont) {
+            ctx.font = `600 ${fontSize}px "${state.fontFamily}", sans-serif`;
+            const segments = parseStyledSegments(text);
+            const words = segmentsToWords(segments);
+            lines = buildLinesFromWords(ctx, words, maxWidth, fontSize, state.fontFamily, false); // not a title
+            const lineHeight = fontSize * 1.25;
+            if (lines.length * lineHeight <= maxHeight) break;
+            fontSize -= 2;
+          }
+
+          ctx.fillStyle = state.palette.text;
+          ctx.textBaseline = "top";
+          ctx.font = `600 ${fontSize}px "${state.fontFamily}", sans-serif`;
+          const lineHeight = fontSize * 1.25;
+          const linePaddingX = Math.max(14, Math.round(fontSize * 0.35));
+          const linePaddingY = Math.max(10, Math.round(fontSize * 0.22));
+          const lineGap = Math.round(fontSize * 0.28);
+
+          const spaceWidth = ctx.measureText(" ").width;
+          let y = marginY + (maxHeight - lines.length * (lineHeight + lineGap)) / 2;
+          
+          lines.forEach((line) => {
+            let x = marginX;
+            line.words.forEach((word, idx) => {
+              ctx.font = `${word.weight} ${fontSize}px "${state.fontFamily}", sans-serif`;
+              ctx.fillStyle = word.mode === "accent" ? accent : state.palette.text;
+              if (idx > 0 && !word.noSpaceBefore) {
+                x += spaceWidth;
+              }
+              ctx.fillText(word.text, x, y);
+              x += word.width;
+            });
+            y += lineHeight + lineGap;
+          });
+
+          // Footer
+          const footerSize = Math.round(fontSize * 0.45);
+          ctx.font = `${footerSize}px "Manrope", sans-serif`;
+          ctx.fillStyle = state.palette.muted;
+          const footerY = h - Math.max(20, Math.round(h * 0.06));
+          const slideText = `Слайд ${index + 1} / ${total}`;
+          ctx.fillText(slideText, marginX, footerY);
+
+          const handle = state.cta; // Use the state value for the footer
+          if (handle) {
+            ctx.textAlign = "right";
+            ctx.fillText(handle, w - marginX, footerY);
+            ctx.textAlign = "left";
+          }
+          return;
         }
 
         // Text layout
@@ -1184,14 +1400,73 @@
         allSlides.forEach((text, index) => {
           const card = document.createElement("div");
           card.className = "preview-card";
+          
+          // Create container for canvas and download button
+          const container = document.createElement("div");
+          container.style.position = "relative";
+          container.style.width = "100%";
+          
           const canvas = document.createElement("canvas");
           const slideImage = state.slideImages[index];
-          drawSlide(canvas, text, index, allSlides.length, index === 0, slideImage);
-          card.appendChild(canvas);
+          const isCta = state.cta && index === allSlides.length - 1 && state.mode !== "cover";
+          drawSlide(canvas, text, index, allSlides.length, index === 0, slideImage, isCta);
+          container.appendChild(canvas);
+          
+          // Add download button for mobile
+          const downloadBtn = document.createElement("button");
+          downloadBtn.innerHTML = "📥";
+          downloadBtn.style.position = "absolute";
+          downloadBtn.style.top = "8px";
+          downloadBtn.style.right = "8px";
+          downloadBtn.style.background = "rgba(0, 0, 0, 0.5)";
+          downloadBtn.style.border = "none";
+          downloadBtn.style.borderRadius = "50%";
+          downloadBtn.style.width = "32px";
+          downloadBtn.style.height = "32px";
+          downloadBtn.style.color = "white";
+          downloadBtn.style.fontSize = "14px";
+          downloadBtn.style.cursor = "pointer";
+          downloadBtn.style.zIndex = "10";
+          downloadBtn.style.display = "none"; // Initially hidden, shown on mobile
+          downloadBtn.style.backdropFilter = "blur(4px)";
+          
+          // Add download functionality
+          downloadBtn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Prevent opening image modal
+            
+            // Create temporary canvas to draw the slide
+            const tempCanvas = document.createElement("canvas");
+            const { w, h } = state.size;
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const ctx = tempCanvas.getContext("2d");
+            
+            // Redraw the slide on the temporary canvas
+            drawSlide(tempCanvas, text, index, allSlides.length, index === 0, slideImage, isCta);
+            
+            // Create download link
+            const link = document.createElement("a");
+            link.download = `slide-${index + 1}_${w}x${h}.jpg`;
+            link.href = tempCanvas.toDataURL("image/jpeg", 0.92);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          });
+          
+          container.appendChild(downloadBtn);
+          card.appendChild(container);
+          
+          // Show download button on mobile
+          if (isMobileDevice()) {
+            downloadBtn.style.display = "flex";
+            downloadBtn.style.alignItems = "center";
+            downloadBtn.style.justifyContent = "center";
+          }
+          
           card.addEventListener("click", () => openImageModal(index));
           preview.appendChild(card);
         });
-        downloadBtn.disabled = false;
+        document.getElementById("downloadBtn").disabled = false;
       }
 
       async function downloadZip() {
@@ -1206,7 +1481,8 @@
         for (let i = 0; i < allSlides.length; i++) {
           const canvas = document.createElement("canvas");
           const slideImage = state.slideImages[i];
-          drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage);
+          const isCta = state.cta && i === allSlides.length - 1 && state.mode !== "cover";
+          drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage, isCta);
           const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
           const base64 = dataUrl.split(",")[1];
           zip.file(`slide-${i + 1}_${w}x${h}.jpg`, base64, { base64: true });
@@ -1233,7 +1509,8 @@
         for (let i = 0; i < allSlides.length; i++) {
           const canvas = document.createElement("canvas");
           const slideImage = state.slideImages[i];
-          drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage);
+          const isCta = state.cta && i === allSlides.length - 1 && state.mode !== "cover";
+          drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage, isCta);
           const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
           const link = document.createElement("a");
           link.href = dataUrl;
@@ -1246,20 +1523,32 @@
       }
 
       function buildPrompt() {
-        return `Ты — редактор каруселей для Instagram на русском языке.  
-Твоя задача — по заданной теме создать структуру карусели в формате JSON:  
-{"title":"...","slides":["...","..."]}
+        return `Ты — профессиональный редактор каруселей для Instagram, создающий контент на русском языке.
 
-Правила:  
-- title: до 60 символов, цепляющий, отражает суть темы.  
-- slides: от 3 до 8 смысловых блоков, каждый до 200 символов.  
-- Каждый блок — законченная мысль, без повторов, в стиле современного минимализма: ясно, лаконично, без воды.  
-- Не используй списки, нумерацию или эмодзи внутри смысловых блоков.  
-- Последний слайд обязательно должен быть призывом: «Подписывайся на Telegram-канал “Нескучный Нетворкинг” — ссылка в шапке профиля». Эта фраза должна быть полностью завершённой, не обрезанной и не перенесённой частично на следующий слайд (так как его нет).  
-- В тексте слайдов можно использовать следующие элементы форматирования:  
-  {текст} → акцентный цвет  
-  **текст** → просто жирный, без акцента  
-- Возвращай ТОЛЬКО валидный JSON, без пояснений и дополнительного текста.
+ЗАДАЧА:
+Создать структуру карусели в строгом формате JSON по заданной теме.
+
+ФОРМАТ ОТВЕТА (только JSON, без markdown, без пояснений):
+{
+  "title": "строка до 60 символов",
+  "slides": ["строка 1", "строка 2", "..."]
+}
+
+ТРЕБОВАНИЯ К СОДЕРЖАНИЮ:
+- title: привлекающий внимание, отражающий суть темы
+- slides: 3-8 слайдов, каждый до 200 символов
+- Каждый слайд — самостоятельная мысль, без воды
+- Стиль: современный минимализм, лаконичность
+- Без списков, нумерации, эмодзи внутри слайдов
+
+ФОРМАТИРОВАНИЕ ТЕКСТА:
+- <accent>текст</accent> → выделить акцентным цветом
+- <bold>текст</bold> → выделить жирным шрифтом
+
+ОТВЕТ ДОЛЖЕН БЫТЬ:
+- Валидным JSON (проверь синтаксис!)
+- Без markdown-разметки (\`\`\`json и т.д.)
+- Без пояснений перед или после JSON
 
 Тема:`;
       }
@@ -1300,9 +1589,21 @@
         }
         try {
           const parsed = JSON.parse(raw);
+          
+          // Validate JSON structure
+          if (typeof parsed !== 'object' || parsed === null) {
+            alert("JSON должен быть объектом с полями 'title' и 'slides'.");
+            return;
+          }
+          
+          if (!('title' in parsed) || !('slides' in parsed)) {
+            alert("JSON должен содержать поля 'title' и 'slides'.\n\nПример:\n{\n  \"title\": \"...\",\n  \"slides\": [\"...\", \"...\"]\n}");
+            return;
+          }
+          
           const normalized = normalizeAiResult(parsed);
           if (!normalized.title && !normalized.slides.length) {
-            alert("JSON без данных.");
+            alert("JSON без данных. Проверьте, что поля 'title' и 'slides' не пустые.");
             return;
           }
           applyStateFromInputs();
@@ -1311,19 +1612,49 @@
           state.slideImages = {};
           renderPreviews();
         } catch (err) {
-          alert("Некорректный JSON.");
+          console.error("JSON Parse Error:", err);
+          console.error("Input text:", raw.substring(0, 200));
+          
+          // Find position of error
+          let errorMsg = "Некорректный JSON.";
+          if (err.message) {
+            const match = err.message.match(/position (\d+)/);
+            if (match) {
+              const pos = parseInt(match[1]);
+              const context = raw.substring(Math.max(0, pos - 30), Math.min(raw.length, pos + 30));
+              errorMsg += `\n\nОшибка около:\n...${context}...\n${' '.repeat(33)}^`;
+            } else {
+              errorMsg += `\n\n${err.message}`;
+            }
+          }
+          errorMsg += "\n\nПодсказка: скопируйте JSON точно без лишних символов до { и после }";
+          alert(errorMsg);
         }
       });
 
       function sanitizeJsonInput(input) {
         if (!input) return "";
         let text = input.replace(/^\uFEFF/, "").trim();
-        // remove ```json ``` wrappers
-        text = text.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+        
+        // remove ```json ... ``` wrappers (multiline)
+        text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+        
+        // remove single backticks if wrapped
+        if (text.startsWith('`') && text.endsWith('`')) {
+          text = text.slice(1, -1).trim();
+        }
+        
         // replace smart quotes with regular quotes
         text = text
-          .replace(/[“”„‟]/g, '"')
-          .replace(/[‘’]/g, "'");
+          .replace(/[""„‟]/g, '"')
+          .replace(/['']/g, "'");
+        
+        // remove trailing commas before } or ]
+        text = text.replace(/,(\s*[}\]])/g, '$1');
+        
+        // normalize line endings
+        text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        
         return text;
       }
 
@@ -1440,8 +1771,8 @@
       copyPromptBtn.addEventListener("click", async () => {
         const prompt = buildPrompt();
         await navigator.clipboard.writeText(prompt);
-        copyPromptBtn.textContent = "Промпт скопирован";
-        setTimeout(() => (copyPromptBtn.textContent = "Скопировать промпт"), 1500);
+        copyPromptBtn.textContent = "✅ Промпт скопирован! Вставь его в ИИ";
+        setTimeout(() => (copyPromptBtn.textContent = "📋 Скопировать промпт"), 2500);
       });
 
       downloadBtn.addEventListener("click", () => {
@@ -1449,6 +1780,41 @@
           downloadImagesIndividually();
         } else {
           downloadZip();
+        }
+      });
+
+      // Apply CTA changes without regenerating the carousel
+      document.getElementById("applyCtaBtn").addEventListener("click", () => {
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+          
+          // Visual feedback for button click
+          const btn = document.getElementById("applyCtaBtn");
+          btn.textContent = "✓ Применено";
+          btn.classList.add("primary");
+          btn.classList.remove("secondary");
+          
+          setTimeout(() => {
+            btn.textContent = "Применить";
+            btn.classList.add("secondary");
+            btn.classList.remove("primary");
+          }, 2000);
+        }
+      });
+
+      // Also update CTA when input values change
+      ctaInput.addEventListener("input", () => {
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      ctaTextInput.addEventListener("input", () => {
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
         }
       });
     </script>
