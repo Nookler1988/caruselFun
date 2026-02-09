@@ -370,11 +370,12 @@
         }
 
         .panel-head {
-          justify-content: flex-end;
+          justify-content: space-between;
         }
 
         button.zip {
-          width: 100%;
+          width: auto;
+          white-space: nowrap;
         }
 
         .preview-grid {
@@ -604,6 +605,7 @@
             <select id="sizeSelect">
               <option value="800x1000">800 × 1000</option>
               <option value="1080x1080">1080 × 1080</option>
+              <option value="1080x1440">1080 × 1440</option>
               <option value="1080x1920">1080 × 1920</option>
               <option value="1350x1080">1350 × 1080</option>
             </select>
@@ -724,10 +726,28 @@
       </section>
 
       <!-- Результат -->
-      <section class="panel">
+      <section class="panel" id="resultsSection">
         <div class="panel-head" style="margin-bottom: 12px;">
           <h3 style="margin: 0; font-size: 16px;">Готовые слайды</h3>
           <button class="zip" id="downloadBtn" disabled style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #8A2BE2, #6A0DAD); border: none; color: white; font-size: 14px;">Скачать</button>
+        </div>
+        <div id="slideOptions" class="row" style="margin-bottom: 16px; flex-wrap: wrap; gap: 16px; display: none;">
+          <label class="meta" style="display: flex; align-items: center; gap: 8px;">
+            Положение заголовка:
+            <select id="titlePositionSelect" style="min-width: 140px;">
+              <option value="center" selected>По центру</option>
+              <option value="bottom-left">Внизу слева</option>
+              <option value="top-left">Вверху слева</option>
+            </select>
+          </label>
+          <label class="meta" style="display: flex; align-items: center; gap: 8px;">
+            Подложка текста:
+            <select id="textUnderlaySelect" style="min-width: 160px;">
+              <option value="none">Без подложки</option>
+              <option value="line" selected>Под каждую строку</option>
+              <option value="card">Сплошная карточка</option>
+            </select>
+          </label>
         </div>
         <div class="preview-wrap">
           <div id="preview" class="preview-grid"></div>
@@ -778,6 +798,7 @@
     <input id="slideImageInput" type="file" accept="image/*" style="display: none" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic-to@1.4.2/dist/iife/heic-to.js" crossorigin="anonymous"></script>
     <script>
       const jsonInput = document.getElementById("jsonInput");
       const modeSelect = document.getElementById("modeSelect");
@@ -807,6 +828,8 @@
         slideImages: {},
         pendingImageIndex: null,
         pendingImageMode: null,
+        titlePosition: "center",
+        textUnderlay: "line",
       };
 
       function isMobileDevice() {
@@ -883,7 +906,7 @@
       function parseStyledSegments(text) {
         const segments = [];
         let buf = "";
-        let mode = "normal"; // normal | accent | bold
+        let mode = "normal"; // normal | accent | bold | header
         let i = 0;
 
         const flush = () => {
@@ -923,6 +946,22 @@
             continue;
           }
 
+          if (rest.startsWith("<header>")) {
+            flush();
+            mode = "header";
+            i += 8;
+            continue;
+          }
+
+          if (rest.startsWith("</header>")) {
+            flush();
+            mode = "normal";
+            i += 9;
+            // Add line break after header (new line without empty spacing)
+            segments.push({ text: "__LINEBREAK__", mode: "normal", isBreak: true });
+            continue;
+          }
+
           buf += ch;
           i += 1;
         }
@@ -933,16 +972,26 @@
 
       function segmentsToWords(segments) {
         const words = [];
-        const stickToPrev = /^(?:[,.!:;?)]|[»”]|…)+$/;
+        const stickToPrev = /^(?:[,.!:;?)]|[»"]|…)+$/;
         segments.forEach((seg) => {
-          const parts = seg.text.split(/\s+/).filter(Boolean);
-          parts.forEach((word) =>
+          if (seg.isBreak) {
+            // Add a special break word
             words.push({
-              text: word,
+              text: "__LINEBREAK__",
               mode: seg.mode,
-              noSpaceBefore: stickToPrev.test(word),
-            })
-          );
+              isBreak: true,
+              noSpaceBefore: true,
+            });
+          } else {
+            const parts = seg.text.split(/\s+/).filter(Boolean);
+            parts.forEach((word) =>
+              words.push({
+                text: word,
+                mode: seg.mode,
+                noSpaceBefore: stickToPrev.test(word),
+              })
+            );
+          }
         });
         return words;
       }
@@ -950,6 +999,7 @@
       function fontWeightFor(mode, isTitle) {
         if (mode === "bold") return 800;
         if (mode === "accent") return 700;
+        if (mode === "header") return 800;
         return isTitle ? 800 : 600;
       }
 
@@ -960,8 +1010,20 @@
         const spaceWidth = ctx.measureText(" ").width;
 
         words.forEach((word) => {
+          // Handle line break - just end current line, no empty line
+          if (word.isBreak) {
+            if (lineWords.length) {
+              lines.push({ words: lineWords, width: lineWidth });
+              lineWords = [];
+              lineWidth = 0;
+            }
+            return;
+          }
+          
           const weight = fontWeightFor(word.mode, isTitle);
-          ctx.font = `${weight} ${fontSize}px "${fontFamily}", sans-serif`;
+          // Header words are 1.3x larger
+          const wordFontSize = word.mode === "header" ? Math.round(fontSize * 1.3) : fontSize;
+          ctx.font = `${weight} ${wordFontSize}px "${fontFamily}", sans-serif`;
           const wordWidth = ctx.measureText(word.text).width;
           const extra = lineWords.length && !word.noSpaceBefore ? spaceWidth : 0;
           if (lineWidth + extra + wordWidth <= maxWidth || !lineWords.length) {
@@ -1283,6 +1345,12 @@
           }
         }
 
+        // Adjust margins for left-aligned title positions (only for title slide)
+        if (isTitle && state.titlePosition && (state.titlePosition === "bottom-left" || state.titlePosition === "top-left")) {
+          marginX = w * 0.08;
+          maxWidth = w * 0.65;
+        }
+
         // Image placement hint (draw after image so it's visible)
         if (slideImage) {
           const rect = getImageRect(slideImage.mode, w, h);
@@ -1293,7 +1361,7 @@
             left: "Фото: лево",
             right: "Фото: право",
           };
-          drawImageModeHint(ctx, rect, labelMap[slideImage.mode] || "Фото", accent);
+          // drawImageModeHint(ctx, rect, labelMap[slideImage.mode] || "Фото", accent);
         }
 
         const needsTightText =
@@ -1301,8 +1369,8 @@
           (slideImage.mode === "left" || slideImage.mode === "right" || slideImage.mode === "top" || slideImage.mode === "bottom");
         const bodyScale = needsTightText ? 0.043 : 0.05;
         const bodyMin = needsTightText ? 0.03 : 0.034;
-        let fontSize = Math.round(Math.min(w, h) * (isTitle ? 0.075 : bodyScale));
-        const minFont = Math.round(Math.min(w, h) * (isTitle ? 0.048 : bodyMin));
+        let fontSize = Math.round(Math.min(w, h) * (isTitle ? 0.06 : bodyScale));
+        const minFont = Math.round(Math.min(w, h) * (isTitle ? 0.038 : bodyMin));
         let lines = [];
 
         while (fontSize >= minFont) {
@@ -1315,27 +1383,80 @@
           fontSize -= 2;
         }
 
-        const hasPhoto = isTitle && slideImage && slideImage.mode === "full";
         ctx.fillStyle = state.palette.text;
         ctx.textBaseline = "top";
         ctx.font = `${isTitle ? 800 : 600} ${fontSize}px "${state.fontFamily}", sans-serif`;
         const lineHeight = fontSize * 1.25;
         const blockHeight = lines.length * lineHeight;
-        let y = marginY + (maxHeight - blockHeight) / 2;
+        
+        // Calculate Y position based on title position setting (for title slide only)
+        let y;
+        if (isTitle && state.titlePosition) {
+          if (state.titlePosition === "bottom-left") {
+            // Position at bottom left with some padding from footer
+            const footerSafe = Math.max(60, Math.round(h * 0.12));
+            y = h - footerSafe - blockHeight;
+          } else if (state.titlePosition === "top-left") {
+            // Position at top left
+            y = h * 0.12;
+          } else {
+            // Default center
+            y = marginY + (maxHeight - blockHeight) / 2;
+          }
+        } else {
+          // Default center for non-title slides
+          y = marginY + (maxHeight - blockHeight) / 2;
+        }
 
         const linePaddingX = Math.max(14, Math.round(fontSize * 0.35));
         const linePaddingY = Math.max(10, Math.round(fontSize * 0.22));
         const lineGap = Math.round(fontSize * 0.28);
 
         const spaceWidth = ctx.measureText(" ").width;
+        
+        // Determine if we need underlay and text color (only for title slide)
+        const needsUnderlay = isTitle && state.textUnderlay !== "none";
+        const underlay = underlays[state.underlay] || underlays.white;
+        
+        // Calculate text color based on underlay presence
+        let textColor;
+        if (needsUnderlay) {
+          // If underlay is enabled, use underlay text color
+          textColor = underlay.text;
+        } else {
+          // No underlay - use palette text color
+          textColor = state.palette.text;
+        }
+        
+        // Draw card underlay (one big rectangle for all text) - only for title slide
+        if (needsUnderlay && state.textUnderlay === "card" && lines.length > 0) {
+          // Find max line width
+          let maxLineWidth = 0;
+          lines.forEach(line => {
+            if (line.width > maxLineWidth) maxLineWidth = line.width;
+          });
+          
+          const cardPaddingX = linePaddingX * 1.5;
+          const cardPaddingY = linePaddingY * 1.5;
+          const cardW = maxLineWidth + cardPaddingX * 2;
+          const cardH = (lines.length * lineHeight) + ((lines.length - 1) * lineGap) + cardPaddingY * 2;
+          const cardX = marginX - cardPaddingX;
+          const cardY = y - cardPaddingY;
+          
+          ctx.fillStyle = underlay.color;
+          ctx.beginPath();
+          ctx.roundRect(cardX, cardY, cardW, cardH, Math.max(16, Math.round(fontSize * 0.4)));
+          ctx.fill();
+        }
+        
         lines.forEach((line) => {
-          if (hasPhoto) {
+          // Draw line underlay (individual rectangle for each line)
+          if (needsUnderlay && state.textUnderlay === "line") {
             const lineWidth = line.width;
             const rectW = lineWidth + linePaddingX * 2;
             const rectH = lineHeight + linePaddingY * 2;
             const rectX = marginX - linePaddingX;
             const rectY = y - linePaddingY;
-            const underlay = underlays[state.underlay] || underlays.white;
             ctx.fillStyle = underlay.color;
             ctx.beginPath();
             ctx.roundRect(rectX, rectY, rectW, rectH, Math.max(10, Math.round(fontSize * 0.3)));
@@ -1343,11 +1464,23 @@
           }
 
           let x = marginX;
+          // Check if this line has header
+          const hasHeader = line.words.some(w => w.mode === "header");
+          
           line.words.forEach((word, idx) => {
-            ctx.font = `${word.weight} ${fontSize}px "${state.fontFamily}", sans-serif`;
-            const underlay = underlays[state.underlay] || underlays.white;
-            const baseText = hasPhoto ? underlay.text : state.palette.text;
-            ctx.fillStyle = word.mode === "accent" ? accent : baseText;
+            // Header text is 1.3x larger
+            const wordFontSize = word.mode === "header" ? Math.round(fontSize * 1.3) : fontSize;
+            ctx.font = `${word.weight} ${wordFontSize}px "${state.fontFamily}", sans-serif`;
+            
+            // Header uses dark background color for contrast
+            if (word.mode === "header") {
+              ctx.fillStyle = state.palette.bgDark;
+            } else if (word.mode === "accent") {
+              ctx.fillStyle = accent;
+            } else {
+              ctx.fillStyle = textColor;
+            }
+            
             if (idx > 0 && !word.noSpaceBefore) {
               x += spaceWidth;
             }
@@ -1355,6 +1488,10 @@
             x += word.width;
           });
           y += lineHeight + lineGap;
+          // Add extra spacing after header line (30% of line height)
+          if (hasHeader) {
+            y += lineHeight * 0.3;
+          }
         });
 
         // Footer
@@ -1385,14 +1522,17 @@
 
       function renderPreviews() {
         preview.innerHTML = "";
+        const slideOptions = document.getElementById("slideOptions");
         if (!state.slides.length && !state.title) {
           empty.style.display = "block";
           downloadBtn.disabled = true;
           downloadBtn.style.display = "none";
+          if (slideOptions) slideOptions.style.display = "none";
           return;
         }
         empty.style.display = "none";
         downloadBtn.style.display = "inline-flex";
+        if (slideOptions) slideOptions.style.display = "flex";
         const allSlides =
           state.mode === "cover"
             ? [state.title || (state.slides[0] || "")].filter(Boolean)
@@ -1571,20 +1711,40 @@
 }
 
 ТРЕБОВАНИЯ К СОДЕРЖАНИЮ:
-- title: привлекающий внимание, отражающий суть темы
+- title: привлекающий внимание, отражающий суть темы, интригующий
 - slides: 3-8 слайдов, каждый до 200 символов
-- Каждый слайд — самостоятельная мысль, без воды
-- Стиль: современный минимализм, лаконичность
+- Каждый слайд — самостоятельная мысль, без воды и повторов
+- Стиль: современный минимализм, лаконичность, профессиональный
 - Без списков, нумерации, эмодзи внутри слайдов
+- Логическая связь между слайдами: от проблемы к решению
+- Первый слайд (после заголовка) — hook, последний — вывод/призыв к действию
 
-ФОРМАТИРОВАНИЕ ТЕКСТА:
-- <accent>текст</accent> → выделить акцентным цветом
-- <bold>текст</bold> → выделить жирным шрифтом
+ФОРМАТИРОВАНИЕ ТЕКСТА (используй умеренно, только где необходимо):
+- <accent>текст</accent> → выделить ВАЖНЫЕ слова/фразы акцентным цветом (1-2 на слайд)
+- <bold>текст</bold> → выделить жирным для дополнительного акцента
+- <header>текст</header> → заголовок слайда, только для обозначения темы слайда
+
+КОГДА ИСПОЛЬЗОВАТЬ ТЕГИ:
+✓ <header> — только для названия раздела или главной мысли слайда
+✓ <accent> — ключевые выгоды, цифры, сроки, результаты
+✗ Не используй теги для всего текста — только для выделения
+✗ Не вкладывай теги друг в друга
+
+ПРИМЕРЫ ХОРОШИХ СЛАЙДОВ:
+- "<header>Ошибка №1</header> Делать всё самому вместо делегирования"
+- "<accent>Экономия 10 часов</accent> в неделю благодаря автоматизации"
+- "Результат виден уже <accent>через 7 дней</accent> регулярной практики"
+
+ПРИМЕРЫ ПЛОХИХ СЛАЙДОВ:
+- "Вот 5 способов... 1. Первый способ... 2. Второй способ..." (списки)
+- "🔥 Крутой лайфхак!!! 🚀" (эмодзи)
+- "Это очень важно!!!" (капс и многоточия)
 
 ОТВЕТ ДОЛЖЕН БЫТЬ:
 - Валидным JSON (проверь синтаксис!)
 - Без markdown-разметки (\`\`\`json и т.д.)
 - Без пояснений перед или после JSON
+- Только поле "title" и массив "slides"
 
 Тема:`;
       }
@@ -1647,6 +1807,14 @@
           state.slides = normalized.slides;
           state.slideImages = {};
           renderPreviews();
+          
+          // Плавная прокрутка к результатам
+          setTimeout(() => {
+            const resultsSection = document.getElementById("resultsSection");
+            if (resultsSection) {
+              resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }, 100);
         } catch (err) {
           console.error("JSON Parse Error:", err);
           console.error("Input text:", raw.substring(0, 200));
@@ -1759,6 +1927,22 @@
         }
       });
 
+      const titlePositionSelect = document.getElementById("titlePositionSelect");
+      titlePositionSelect.addEventListener("change", () => {
+        state.titlePosition = titlePositionSelect.value;
+        if (state.title || state.slides.length) {
+          renderPreviews();
+        }
+      });
+
+      const textUnderlaySelect = document.getElementById("textUnderlaySelect");
+      textUnderlaySelect.addEventListener("change", () => {
+        state.textUnderlay = textUnderlaySelect.value;
+        if (state.title || state.slides.length) {
+          renderPreviews();
+        }
+      });
+
       imageModal.addEventListener("click", (event) => {
         if (event.target === imageModal) closeImageModal();
       });
@@ -1777,31 +1961,93 @@
           closeImageModal();
           return;
         }
-        state.pendingImageMode = mode;
-        slideImageInput.value = "";
-        slideImageInput.click();
-      });
-
-      slideImageInput.addEventListener("change", () => {
-        const file = slideImageInput.files?.[0];
-        if (!file || state.pendingImageIndex === null || !state.pendingImageMode) {
-          closeImageModal();
+        
+        // Сохраняем индекс и режим в локальные переменные, чтобы избежать проблем с асинхронностью
+        const currentIndex = state.pendingImageIndex;
+        const currentMode = mode;
+        
+        if (currentIndex === null) {
+          console.error("Не выбран индекс слайда");
           return;
         }
-        const reader = new FileReader();
-        reader.onload = () => {
-          const img = new Image();
-          img.onload = () => {
-            state.slideImages[state.pendingImageIndex] = {
-              img,
-              mode: state.pendingImageMode,
-            };
-            renderPreviews();
-            closeImageModal();
+        
+        slideImageInput.value = "";
+        
+        // Создаем одноразовый обработчик для этого конкретного выбора файла
+        const handleFileSelect = async () => {
+          let file = slideImageInput.files?.[0];
+          if (!file) {
+            console.log("Файл не выбран");
+            slideImageInput.removeEventListener("change", handleFileSelect);
+            return;
+          }
+          
+          console.log("Выбран файл:", file.name, "для слайда", currentIndex, "режим:", currentMode);
+          
+          // Проверяем формат файла
+          const fileExtension = file.name.split('.').pop()?.toLowerCase();
+          const isHeic = fileExtension === 'heic' || fileExtension === 'heif' || file.type === 'image/heic' || file.type === 'image/heif';
+          
+          // Конвертируем HEIC в JPEG если нужно
+          if (isHeic) {
+            console.log("Обнаружен HEIC файл, начинаем конвертацию...");
+            try {
+              // Используем heic-to для конвертации
+              if (typeof HeicTo === 'undefined') {
+                throw new Error("Библиотека heic-to не загружена");
+              }
+              
+              // Конвертируем HEIC в JPEG Blob
+              const jpegBlob = await HeicTo({
+                blob: file,
+                type: "image/jpeg",
+                quality: 0.92
+              });
+              
+              // Создаем новый File объект из Blob
+              file = new File([jpegBlob], file.name.replace(/\.heic$/i, '.jpg'), { type: "image/jpeg" });
+              console.log("HEIC успешно конвертирован в JPEG");
+            } catch (err) {
+              console.error("Ошибка конвертации HEIC:", err);
+              alert("Ошибка конвертации HEIC: " + err.message + "\n\nПопробуйте сохранить фото в формате JPEG перед загрузкой.");
+              slideImageInput.removeEventListener("change", handleFileSelect);
+              return;
+            }
+          }
+          
+          const reader = new FileReader();
+          reader.onerror = () => {
+            console.error("Ошибка чтения файла");
+            alert("Ошибка при чтении файла");
+            slideImageInput.removeEventListener("change", handleFileSelect);
           };
-          img.src = reader.result;
+          
+          reader.onload = () => {
+            const img = new Image();
+            img.onerror = () => {
+              console.error("Ошибка загрузки изображения");
+              alert("Не удалось загрузить изображение. Убедитесь, что файл является корректным изображением (JPEG, PNG, GIF, WebP).");
+              slideImageInput.removeEventListener("change", handleFileSelect);
+            };
+            
+            img.onload = () => {
+              console.log("Изображение загружено:", img.width, "x", img.height);
+              state.slideImages[currentIndex] = {
+                img,
+                mode: currentMode,
+              };
+              console.log("Сохранено в state.slideImages[", currentIndex, "]");
+              renderPreviews();
+              closeImageModal();
+              slideImageInput.removeEventListener("change", handleFileSelect);
+            };
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(file);
         };
-        reader.readAsDataURL(file);
+        
+        slideImageInput.addEventListener("change", handleFileSelect);
+        slideImageInput.click();
       });
 
       copyPromptBtn.addEventListener("click", async () => {
