@@ -299,6 +299,77 @@
         border-right: 36px solid transparent;
       }
 
+      .layout-thumb[data-layout="dots"]::before {
+        content: "";
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        width: 6px;
+        height: 6px;
+        background: rgba(47, 128, 237, 0.4);
+        border-radius: 50%;
+        box-shadow: 12px 0 0 rgba(47, 128, 237, 0.4), 24px 0 0 rgba(47, 128, 237, 0.4),
+                    0 12px 0 rgba(47, 128, 237, 0.4), 12px 12px 0 rgba(47, 128, 237, 0.4), 24px 12px 0 rgba(47, 128, 237, 0.4);
+      }
+
+      .layout-thumb[data-layout="stripes"]::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 6px;
+        right: 6px;
+        bottom: 6px;
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(47, 128, 237, 0.15),
+          rgba(47, 128, 237, 0.15) 3px,
+          transparent 3px,
+          transparent 8px
+        );
+      }
+
+      .layout-thumb[data-layout="waves"]::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 40%;
+        background: linear-gradient(to top, rgba(47, 128, 237, 0.2), transparent);
+        border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      }
+
+      .layout-thumb[data-layout="circle"]::before {
+        content: "";
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(47, 128, 237, 0.4);
+        border-radius: 50%;
+      }
+
+      .layout-thumb[data-layout="diamond"]::before {
+        content: "";
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        width: 14px;
+        height: 14px;
+        background: rgba(47, 128, 237, 0.3);
+        transform: rotate(45deg);
+      }
+
+      .layout-thumb[data-layout="shadow"]::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        background: rgba(47, 128, 237, 0.1);
+        border-radius: 8px;
+        box-shadow: 4px 4px 0 rgba(47, 128, 237, 0.2);
+      }
+
       .color-thumb[data-palette="linen"] {
         background: linear-gradient(135deg, #fbf8f3, #e6e1d6);
       }
@@ -701,6 +772,30 @@
                 <div class="layout-thumb" data-layout="corner"></div>
                 Corner
               </button>
+              <button class="chip" data-layout="dots" type="button">
+                <div class="layout-thumb" data-layout="dots"></div>
+                Dots
+              </button>
+              <button class="chip" data-layout="stripes" type="button">
+                <div class="layout-thumb" data-layout="stripes"></div>
+                Stripes
+              </button>
+              <button class="chip" data-layout="waves" type="button">
+                <div class="layout-thumb" data-layout="waves"></div>
+                Waves
+              </button>
+              <button class="chip" data-layout="circle" type="button">
+                <div class="layout-thumb" data-layout="circle"></div>
+                Circle
+              </button>
+              <button class="chip" data-layout="diamond" type="button">
+                <div class="layout-thumb" data-layout="diamond"></div>
+                Diamond
+              </button>
+              <button class="chip" data-layout="shadow" type="button">
+                <div class="layout-thumb" data-layout="shadow"></div>
+                Shadow
+              </button>
             </div>
           </div>
         </div>
@@ -1049,6 +1144,12 @@
         grid: "grid",
         pill: "pill",
         corner: "corner",
+        dots: "dots",
+        stripes: "stripes",
+        waves: "waves",
+        circle: "circle",
+        diamond: "diamond",
+        shadow: "shadow",
       };
 
       function parseSize(value) {
@@ -1340,6 +1441,55 @@
           ctx.lineTo(0, h * 0.18);
           ctx.closePath();
           ctx.fill();
+        } else if (state.layout === layouts.dots) {
+          ctx.fillStyle = `${accent}40`;
+          const dotSize = Math.max(4, Math.round(w * 0.012));
+          const spacing = Math.max(20, Math.round(w * 0.05));
+          for (let x = w * 0.08; x < w * 0.25; x += spacing) {
+            for (let y = h * 0.08; y < h * 0.25; y += spacing) {
+              ctx.beginPath();
+              ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        } else if (state.layout === layouts.stripes) {
+          ctx.fillStyle = `${accent}20`;
+          const stripeWidth = Math.max(3, Math.round(w * 0.008));
+          const stripeGap = stripeWidth * 2;
+          for (let x = w * 0.05; x < w * 0.35; x += stripeGap) {
+            ctx.fillRect(x, h * 0.05, stripeWidth, h * 0.25);
+          }
+        } else if (state.layout === layouts.waves) {
+          ctx.fillStyle = `${accent}25`;
+          ctx.beginPath();
+          ctx.moveTo(0, h * 0.85);
+          for (let x = 0; x <= w; x += w / 20) {
+            ctx.lineTo(x, h * 0.85 + Math.sin(x / w * Math.PI * 2) * h * 0.05);
+          }
+          ctx.lineTo(w, h);
+          ctx.lineTo(0, h);
+          ctx.closePath();
+          ctx.fill();
+        } else if (state.layout === layouts.circle) {
+          ctx.strokeStyle = `${accent}50`;
+          ctx.lineWidth = Math.max(2, Math.round(w * 0.004));
+          ctx.beginPath();
+          ctx.arc(w * 0.85, h * 0.15, w * 0.08, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (state.layout === layouts.diamond) {
+          ctx.fillStyle = `${accent}30`;
+          const size = w * 0.06;
+          ctx.save();
+          ctx.translate(w * 0.9, h * 0.1);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillRect(-size / 2, -size / 2, size, size);
+          ctx.restore();
+        } else if (state.layout === layouts.shadow) {
+          ctx.fillStyle = `${accent}15`;
+          const offset = w * 0.02;
+          ctx.fillRect(w * 0.08 + offset, h * 0.08 + offset, w * 0.2, h * 0.12);
+          ctx.fillStyle = `${accent}30`;
+          ctx.fillRect(w * 0.08, h * 0.08, w * 0.2, h * 0.12);
         }
 
         // CTA Slide - Same layout as other slides
@@ -1394,6 +1544,55 @@
             ctx.lineTo(0, h * 0.18);
             ctx.closePath();
             ctx.fill();
+          } else if (state.layout === layouts.dots) {
+            ctx.fillStyle = `${accent}40`;
+            const dotSize = Math.max(4, Math.round(w * 0.012));
+            const spacing = Math.max(20, Math.round(w * 0.05));
+            for (let x = w * 0.08; x < w * 0.25; x += spacing) {
+              for (let y = h * 0.08; y < h * 0.25; y += spacing) {
+                ctx.beginPath();
+                ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          } else if (state.layout === layouts.stripes) {
+            ctx.fillStyle = `${accent}20`;
+            const stripeWidth = Math.max(3, Math.round(w * 0.008));
+            const stripeGap = stripeWidth * 2;
+            for (let x = w * 0.05; x < w * 0.35; x += stripeGap) {
+              ctx.fillRect(x, h * 0.05, stripeWidth, h * 0.25);
+            }
+          } else if (state.layout === layouts.waves) {
+            ctx.fillStyle = `${accent}25`;
+            ctx.beginPath();
+            ctx.moveTo(0, h * 0.85);
+            for (let x = 0; x <= w; x += w / 20) {
+              ctx.lineTo(x, h * 0.85 + Math.sin(x / w * Math.PI * 2) * h * 0.05);
+            }
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fill();
+          } else if (state.layout === layouts.circle) {
+            ctx.strokeStyle = `${accent}50`;
+            ctx.lineWidth = Math.max(2, Math.round(w * 0.004));
+            ctx.beginPath();
+            ctx.arc(w * 0.85, h * 0.15, w * 0.08, 0, Math.PI * 2);
+            ctx.stroke();
+          } else if (state.layout === layouts.diamond) {
+            ctx.fillStyle = `${accent}30`;
+            const size = w * 0.06;
+            ctx.save();
+            ctx.translate(w * 0.9, h * 0.1);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillRect(-size / 2, -size / 2, size, size);
+            ctx.restore();
+          } else if (state.layout === layouts.shadow) {
+            ctx.fillStyle = `${accent}15`;
+            const offset = w * 0.02;
+            ctx.fillRect(w * 0.08 + offset, h * 0.08 + offset, w * 0.2, h * 0.12);
+            ctx.fillStyle = `${accent}30`;
+            ctx.fillRect(w * 0.08, h * 0.08, w * 0.2, h * 0.12);
           }
 
           // Use the same text layout as other slides instead of centered
