@@ -1292,7 +1292,7 @@
             y += lineHeight + lineGap;
           });
 
-          // Footer
+          // Footer - show only slide number for CTA slide
           const footerSize = Math.round(fontSize * 0.45);
           ctx.font = `${footerSize}px "Manrope", sans-serif`;
           ctx.fillStyle = state.palette.muted;
@@ -1300,12 +1300,6 @@
           const slideText = `Слайд ${index + 1} / ${total}`;
           ctx.fillText(slideText, marginX, footerY);
 
-          const handle = state.cta; // Use the state value for the footer
-          if (handle) {
-            ctx.textAlign = "right";
-            ctx.fillText(handle, w - marginX, footerY);
-            ctx.textAlign = "left";
-          }
           return;
         }
 
