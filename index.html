@@ -414,8 +414,12 @@
         background: linear-gradient(135deg, #fff5f3, #fecaca);
       }
 
-      .color-thumb[data-palette="lemon"] {
-        background: linear-gradient(135deg, #fefce8, #fde047);
+      .color-thumb[data-palette="white"] {
+        background: linear-gradient(135deg, #ffffff, #f3f4f6);
+      }
+
+      .color-thumb[data-palette="black"] {
+        background: linear-gradient(135deg, #262626, #0a0a0a);
       }
 
       .color-thumb[data-underlay="white"] {
@@ -847,9 +851,13 @@
                 <div class="color-thumb" data-palette="coral"></div>
                 Coral
               </button>
-              <button class="chip" data-palette="lemon" type="button">
-                <div class="color-thumb" data-palette="lemon"></div>
-                Lemon
+              <button class="chip" data-palette="white" type="button">
+                <div class="color-thumb" data-palette="white"></div>
+                White
+              </button>
+              <button class="chip" data-palette="black" type="button">
+                <div class="color-thumb" data-palette="black"></div>
+                Black
               </button>
             </div>
           </div>
@@ -1113,12 +1121,19 @@
           muted: "rgba(36, 24, 20, 0.55)",
           accents: ["#ff6b6b", "#f06595", "#fa5252", "#e64980"],
         },
-        lemon: {
-          bgLight: "#fefce8",
-          bgDark: "#1f1d12",
-          text: "#1f1d12",
-          muted: "rgba(31, 29, 18, 0.55)",
-          accents: ["#fbbf24", "#f59e0b", "#d97706", "#facc15"],
+        white: {
+          bgLight: "#ffffff",
+          bgDark: "#0a0a0a",
+          text: "#0a0a0a",
+          muted: "rgba(10, 10, 10, 0.55)",
+          accents: ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b"],
+        },
+        black: {
+          bgLight: "#1a1a1a",
+          bgDark: "#000000",
+          text: "#f5f5f5",
+          muted: "rgba(245, 245, 245, 0.55)",
+          accents: ["#60a5fa", "#a78bfa", "#34d399", "#fbbf24"],
         },
       };
 
