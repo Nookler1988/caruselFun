@@ -718,9 +718,11 @@
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         object-fit: contain;
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: default;
+        -webkit-touch-callout: default !important;
+        -webkit-user-select: auto !important;
+        user-select: auto !important;
+        pointer-events: auto !important;
+        touch-action: auto !important;
       }
 
       .ios-save-instructions {
@@ -2466,6 +2468,14 @@
               border-radius: 6px;
               font-size: 12px;
               font-weight: 600;
+              z-index: 2;
+            }
+            .ios-gallery-item img {
+              -webkit-touch-callout: default !important;
+              -webkit-user-select: auto !important;
+              user-select: auto !important;
+              pointer-events: auto !important;
+              touch-action: auto !important;
             }
           `;
           document.head.appendChild(style);
@@ -2475,29 +2485,50 @@
         const grid = document.getElementById('iosGalleryGrid');
         grid.innerHTML = '';
         
-        allSlides.forEach((text, index) => {
+        allSlides.forEach(async (text, index) => {
           const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
           const slideImage = state.slideImages[index];
           const isCta = state.cta && index === allSlides.length - 1 && state.mode !== "cover";
           drawSlide(canvas, text, index, allSlides.length, index === 0, slideImage, isCta);
           
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          // Convert to blob URL for iOS long-press support
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+          const blobUrl = URL.createObjectURL(blob);
           
           const item = document.createElement('div');
           item.className = 'ios-gallery-item';
-          item.innerHTML = `
-            <span class="ios-gallery-item-number">${index + 1}</span>
-            <img src="${dataUrl}" alt="Slide ${index + 1}" />
-          `;
+          item.dataset.blobUrl = blobUrl; // Store for cleanup
           
-          // Open full-size on click for long-press save
-          item.addEventListener('click', () => {
+          const img = document.createElement('img');
+          img.src = blobUrl;
+          img.alt = `Slide ${index + 1}`;
+          img.style.webkitTouchCallout = 'default'; // Enable iOS long-press menu
+          img.style.webkitUserSelect = 'none';
+          img.draggable = false;
+          
+          const number = document.createElement('span');
+          number.className = 'ios-gallery-item-number';
+          number.textContent = index + 1;
+          
+          item.appendChild(number);
+          item.appendChild(img);
+          
+          // Open full-size modal on click
+          item.addEventListener('click', (e) => {
+            e.preventDefault();
             const iosModal = document.getElementById('iosSaveModal');
             const iosImage = document.getElementById('iosSaveImage');
-            iosImage.src = dataUrl;
+            iosImage.src = blobUrl;
             iosModal.classList.add('open');
             iosModal.setAttribute('aria-hidden', 'false');
           });
+          
+          // Enable long-press context menu on the item itself
+          item.addEventListener('touchstart', function(e) {
+            // Allow default behavior for long-press
+          }, { passive: true });
           
           grid.appendChild(item);
         });
@@ -2518,6 +2549,8 @@
           galleryModal.classList.remove('open');
           galleryModal.setAttribute('aria-hidden', 'true');
         }
+        // Cleanup blob URLs after modal closes
+        setTimeout(cleanupGalleryBlobs, 100);
       }
 
       function buildPrompt() {
@@ -2779,10 +2812,21 @@
         iosSaveModal.classList.remove('open');
         iosSaveModal.setAttribute('aria-hidden', 'true');
         const iosImage = document.getElementById('iosSaveImage');
-        if (iosImage.src) {
+        if (iosImage.src && iosImage.src.startsWith('blob:')) {
           URL.revokeObjectURL(iosImage.src);
           iosImage.src = '';
         }
+      }
+
+      // Cleanup blob URLs from gallery when closing
+      function cleanupGalleryBlobs() {
+        const galleryItems = document.querySelectorAll('.ios-gallery-item');
+        galleryItems.forEach(item => {
+          const blobUrl = item.dataset.blobUrl;
+          if (blobUrl) {
+            URL.revokeObjectURL(blobUrl);
+          }
+        });
       }
 
       closeIosModalBtn.addEventListener('click', closeIosModal);
