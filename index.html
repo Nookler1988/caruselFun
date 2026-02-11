@@ -2348,6 +2348,12 @@
             ? [state.title || (state.slides[0] || "")].filter(Boolean)
             : [state.title, ...state.slides, state.cta].filter(Boolean);
 
+        // For iOS: Show gallery modal with all slides
+        if (isIOS()) {
+          showIosGalleryModal(allSlides, w, h);
+          return;
+        }
+
         // Collect all images as blobs
         const images = [];
         for (let i = 0; i < allSlides.length; i++) {
@@ -2369,18 +2375,148 @@
         const sentToTelegram = await sendToTelegram(images);
         
         if (!sentToTelegram) {
-          // Fallback: direct download
+          // Use saveSlideToGallery for each image
           for (let i = 0; i < images.length; i++) {
-            const url = URL.createObjectURL(images[i].blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = images[i].filename;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
-            await new Promise((r) => setTimeout(r, 500));
+            await saveSlideToGallery(images[i].blob, images[i].filename);
+            // Delay between saves
+            if (i < images.length - 1) {
+              await new Promise((r) => setTimeout(r, 800));
+            }
           }
+        }
+      }
+
+      // iOS Gallery Modal for saving multiple slides
+      function showIosGalleryModal(allSlides, w, h) {
+        // Create modal if doesn't exist
+        let galleryModal = document.getElementById('iosGalleryModal');
+        if (!galleryModal) {
+          galleryModal = document.createElement('div');
+          galleryModal.id = 'iosGalleryModal';
+          galleryModal.className = 'modal';
+          galleryModal.innerHTML = `
+            <div class="modal-card ios-gallery-card">
+              <div class="ios-gallery-header">
+                <h3>Сохраните слайды</h3>
+                <button class="ghost ios-close-btn" onclick="closeIosGalleryModal()">✕</button>
+              </div>
+              <div class="ios-gallery-subtitle">Нажмите на слайд, затем удерживайте для сохранения</div>
+              <div class="ios-gallery-grid" id="iosGalleryGrid"></div>
+            </div>
+          `;
+          document.body.appendChild(galleryModal);
+          
+          // Add styles
+          const style = document.createElement('style');
+          style.textContent = `
+            .ios-gallery-card {
+              width: min(480px, 95vw);
+              max-height: 90vh;
+              overflow-y: auto;
+            }
+            .ios-gallery-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding-bottom: 12px;
+              border-bottom: 1px solid var(--stroke);
+            }
+            .ios-gallery-header h3 {
+              margin: 0;
+              font-size: 18px;
+              color: var(--text);
+            }
+            .ios-gallery-subtitle {
+              padding: 12px 0;
+              color: var(--muted);
+              font-size: 13px;
+              text-align: center;
+            }
+            .ios-gallery-grid {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 12px;
+              padding: 8px 0;
+            }
+            .ios-gallery-item {
+              position: relative;
+              border-radius: 12px;
+              overflow: hidden;
+              border: 2px solid transparent;
+              transition: all 0.2s;
+              background: rgba(255,255,255,0.05);
+              aspect-ratio: ${w}/${h};
+            }
+            .ios-gallery-item:active {
+              transform: scale(0.98);
+            }
+            .ios-gallery-item img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              display: block;
+            }
+            .ios-gallery-item-number {
+              position: absolute;
+              top: 8px;
+              left: 8px;
+              background: rgba(0,0,0,0.6);
+              color: white;
+              padding: 4px 8px;
+              border-radius: 6px;
+              font-size: 12px;
+              font-weight: 600;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        // Generate grid
+        const grid = document.getElementById('iosGalleryGrid');
+        grid.innerHTML = '';
+        
+        allSlides.forEach((text, index) => {
+          const canvas = document.createElement('canvas');
+          const slideImage = state.slideImages[index];
+          const isCta = state.cta && index === allSlides.length - 1 && state.mode !== "cover";
+          drawSlide(canvas, text, index, allSlides.length, index === 0, slideImage, isCta);
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          
+          const item = document.createElement('div');
+          item.className = 'ios-gallery-item';
+          item.innerHTML = `
+            <span class="ios-gallery-item-number">${index + 1}</span>
+            <img src="${dataUrl}" alt="Slide ${index + 1}" />
+          `;
+          
+          // Open full-size on click for long-press save
+          item.addEventListener('click', () => {
+            const iosModal = document.getElementById('iosSaveModal');
+            const iosImage = document.getElementById('iosSaveImage');
+            iosImage.src = dataUrl;
+            iosModal.classList.add('open');
+            iosModal.setAttribute('aria-hidden', 'false');
+          });
+          
+          grid.appendChild(item);
+        });
+
+        // Show modal
+        galleryModal.classList.add('open');
+        galleryModal.setAttribute('aria-hidden', 'false');
+        
+        // Close handler
+        galleryModal.addEventListener('click', (e) => {
+          if (e.target === galleryModal) closeIosGalleryModal();
+        });
+      }
+
+      function closeIosGalleryModal() {
+        const galleryModal = document.getElementById('iosGalleryModal');
+        if (galleryModal) {
+          galleryModal.classList.remove('open');
+          galleryModal.setAttribute('aria-hidden', 'true');
         }
       }
 
