@@ -810,6 +810,110 @@
       .toast-icon {
         font-size: 20px;
       }
+
+      /* iOS Batch Save Modal Styles */
+      .ios-batch-save-card {
+        width: min(420px, 95vw);
+        max-height: 95vh;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+      }
+
+      .ios-batch-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--stroke);
+        gap: 12px;
+      }
+
+      .ios-batch-header h3 {
+        margin: 0;
+        font-size: 17px;
+        color: var(--text);
+        flex: 1;
+      }
+
+      .ios-batch-counter {
+        background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+        color: var(--dark);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 15px;
+      }
+
+      .ios-batch-image-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 0;
+        min-height: 200px;
+      }
+
+      .ios-batch-image-container img {
+        max-width: 100%;
+        max-height: 45vh;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        -webkit-touch-callout: default !important;
+        -webkit-user-select: auto !important;
+        user-select: auto !important;
+        pointer-events: auto !important;
+      }
+
+      .ios-batch-instructions {
+        text-align: center;
+        padding: 16px;
+        background: rgba(0, 212, 255, 0.08);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        margin-bottom: 16px;
+      }
+
+      .ios-batch-instructions p {
+        margin: 6px 0;
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .ios-batch-instructions strong {
+        color: var(--accent-1);
+      }
+
+      .ios-batch-next-btn {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 16px;
+        font-weight: 700;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--accent-1), #8bf0ff);
+        color: #0b0f19;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .ios-batch-next-btn:active {
+        transform: scale(0.98);
+      }
+
+      .ios-batch-done-btn {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 16px;
+        font-weight: 700;
+        border: 1px solid rgba(34, 197, 94, 0.5);
+        border-radius: 12px;
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+        cursor: pointer;
+        margin-top: 12px;
+      }
     </style>
   </head>
   <body>
@@ -1057,7 +1161,14 @@
       <section class="panel" id="resultsSection">
         <div class="panel-head" style="margin-bottom: 12px;">
           <h3 style="margin: 0; font-size: 16px;">Готовые слайды</h3>
-          <button class="zip" id="downloadBtn" disabled style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #8A2BE2, #6A0DAD); border: none; color: white; font-size: 14px;">Скачать</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="zip" id="saveAllBtn" disabled style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #22c55e, #16a34a); border: none; color: white; font-size: 14px;">
+              📲 Сохранить все
+            </button>
+            <button class="zip" id="downloadBtn" disabled style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #8A2BE2, #6A0DAD); border: none; color: white; font-size: 14px;">
+              📦 ZIP
+            </button>
+          </div>
         </div>
         <div id="slideOptions" class="row" style="margin-bottom: 16px; flex-wrap: wrap; gap: 16px; display: none;">
           <label class="meta" style="display: flex; align-items: center; gap: 8px;">
@@ -1141,6 +1252,34 @@
       </div>
     </div>
 
+    <!-- iOS Batch Save Modal -->
+    <div class="modal" id="iosBatchSaveModal" aria-hidden="true">
+      <div class="modal-card ios-batch-save-card">
+        <div class="ios-batch-header">
+          <h3>Сохранение серии фото</h3>
+          <div class="ios-batch-counter">
+            <span id="batchCurrent">1</span> / <span id="batchTotal">5</span>
+          </div>
+          <button class="ghost ios-close-btn" id="closeIosBatchModalBtn">✕</button>
+        </div>
+        <div class="ios-batch-image-container">
+          <img id="iosBatchSaveImage" src="" alt="Slide" />
+        </div>
+        <div class="ios-batch-instructions">
+          <div class="ios-save-icon">👆</div>
+          <p><strong>Шаг 1:</strong> Удерживайте палец на фото</p>
+          <p><strong>Шаг 2:</strong> Нажмите «Сохранить в Фото»</p>
+          <p><strong>Шаг 3:</strong> Нажмите «Далее» ↓</p>
+        </div>
+        <button class="primary ios-batch-next-btn" id="iosBatchNextBtn">
+          Сохранено → Далее
+        </button>
+        <button class="ghost ios-batch-done-btn hidden" id="iosBatchDoneBtn">
+          ✅ Готово! Закрыть
+        </button>
+      </div>
+    </div>
+
     <input id="slideImageInput" type="file" accept="image/*" style="display: none" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
@@ -1155,6 +1294,7 @@
       const colorPicker = document.getElementById("colorPicker");
       const fromJsonBtn = document.getElementById("fromJsonBtn");
       const downloadBtn = document.getElementById("downloadBtn");
+      const saveAllBtn = document.getElementById("saveAllBtn");
       const copyPromptBtn = document.getElementById("copyPromptBtn");
       const preview = document.getElementById("preview");
       const empty = document.getElementById("empty");
@@ -2230,11 +2370,14 @@
           empty.style.display = "block";
           downloadBtn.disabled = true;
           downloadBtn.style.display = "none";
+          saveAllBtn.disabled = true;
+          saveAllBtn.style.display = "none";
           if (slideOptions) slideOptions.style.display = "none";
           return;
         }
         empty.style.display = "none";
         downloadBtn.style.display = "inline-flex";
+        saveAllBtn.style.display = "inline-flex";
         if (slideOptions) slideOptions.style.display = "flex";
         const allSlides =
           state.mode === "cover"
@@ -2311,6 +2454,7 @@
           preview.appendChild(card);
         });
         document.getElementById("downloadBtn").disabled = false;
+        document.getElementById("saveAllBtn").disabled = false;
       }
 
       async function downloadZip() {
@@ -2350,14 +2494,41 @@
             ? [state.title || (state.slides[0] || "")].filter(Boolean)
             : [state.title, ...state.slides, state.cta].filter(Boolean);
 
-        // For iOS: Show gallery modal with all slides
+        // For iOS: Use batch save modal for sequential saving
         if (isIOS()) {
-          showIosGalleryModal(allSlides, w, h);
+          startBatchSave();
           return;
         }
 
-        // Collect all images as blobs
-        const images = [];
+        // For Android with Web Share API support: share all files at once
+        if (canShareFiles() && isMobileDevice()) {
+          const files = [];
+          for (let i = 0; i < allSlides.length; i++) {
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const slideImage = state.slideImages[i];
+            const isCta = state.cta && i === allSlides.length - 1 && state.mode !== "cover";
+            drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage, isCta);
+            
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+            const file = new File([blob], `slide-${i + 1}_${w}x${h}.jpg`, { type: 'image/jpeg' });
+            files.push(file);
+          }
+
+          try {
+            if (navigator.canShare && navigator.canShare({ files })) {
+              await navigator.share({ files });
+              showToast('✅ Выберите «Сохранить все» в меню', 'success');
+              return;
+            }
+          } catch (err) {
+            console.log('Share API failed:', err);
+            // Fallback to sequential download
+          }
+        }
+
+        // Fallback: sequential download for other devices
         for (let i = 0; i < allSlides.length; i++) {
           const canvas = document.createElement("canvas");
           canvas.width = w;
@@ -2367,23 +2538,10 @@
           drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage, isCta);
           
           const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-          images.push({
-            blob: blob,
-            filename: `slide-${i + 1}_${w}x${h}.jpg`
-          });
-        }
-
-        // Try Telegram first, fallback to direct download
-        const sentToTelegram = await sendToTelegram(images);
-        
-        if (!sentToTelegram) {
-          // Use saveSlideToGallery for each image
-          for (let i = 0; i < images.length; i++) {
-            await saveSlideToGallery(images[i].blob, images[i].filename);
-            // Delay between saves
-            if (i < images.length - 1) {
-              await new Promise((r) => setTimeout(r, 800));
-            }
+          await saveSlideToGallery(blob, `slide-${i + 1}_${w}x${h}.jpg`);
+          
+          if (i < allSlides.length - 1) {
+            await new Promise((r) => setTimeout(r, 600));
           }
         }
       }
@@ -2552,6 +2710,105 @@
         // Cleanup blob URLs after modal closes
         setTimeout(cleanupGalleryBlobs, 100);
       }
+
+      // Batch save for iOS - sequential saving of all slides
+      let batchSaveData = {
+        images: [],
+        currentIndex: 0
+      };
+
+      async function startBatchSave() {
+        if (!state.slides.length && !state.title) return;
+        const { w, h } = state.size;
+        const allSlides =
+          state.mode === "cover"
+            ? [state.title || (state.slides[0] || "")].filter(Boolean)
+            : [state.title, ...state.slides, state.cta].filter(Boolean);
+
+        // Generate all blobs
+        const images = [];
+        for (let i = 0; i < allSlides.length; i++) {
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const slideImage = state.slideImages[i];
+          const isCta = state.cta && i === allSlides.length - 1 && state.mode !== "cover";
+          drawSlide(canvas, allSlides[i], i, allSlides.length, i === 0, slideImage, isCta);
+          
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+          const blobUrl = URL.createObjectURL(blob);
+          images.push({
+            blob: blob,
+            blobUrl: blobUrl,
+            filename: `slide-${i + 1}_${w}x${h}.jpg`
+          });
+        }
+
+        batchSaveData = {
+          images: images,
+          currentIndex: 0
+        };
+
+        showBatchSaveModal();
+      }
+
+      function showBatchSaveModal() {
+        const modal = document.getElementById('iosBatchSaveModal');
+        const image = document.getElementById('iosBatchSaveImage');
+        const currentEl = document.getElementById('batchCurrent');
+        const totalEl = document.getElementById('batchTotal');
+        const nextBtn = document.getElementById('iosBatchNextBtn');
+        const doneBtn = document.getElementById('iosBatchDoneBtn');
+
+        if (batchSaveData.currentIndex >= batchSaveData.images.length) {
+          // All done
+          closeBatchSaveModal();
+          showToast('✅ Все фото сохранены!', 'success');
+          return;
+        }
+
+        const current = batchSaveData.images[batchSaveData.currentIndex];
+        image.src = current.blobUrl;
+        currentEl.textContent = batchSaveData.currentIndex + 1;
+        totalEl.textContent = batchSaveData.images.length;
+
+        // Show/hide buttons based on progress
+        if (batchSaveData.currentIndex === batchSaveData.images.length - 1) {
+          nextBtn.classList.add('hidden');
+          doneBtn.classList.remove('hidden');
+        } else {
+          nextBtn.classList.remove('hidden');
+          doneBtn.classList.add('hidden');
+        }
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function nextBatchImage() {
+        batchSaveData.currentIndex++;
+        showBatchSaveModal();
+      }
+
+      function closeBatchSaveModal() {
+        const modal = document.getElementById('iosBatchSaveModal');
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        
+        // Cleanup all blob URLs
+        batchSaveData.images.forEach(img => {
+          if (img.blobUrl) URL.revokeObjectURL(img.blobUrl);
+        });
+        batchSaveData = { images: [], currentIndex: 0 };
+      }
+
+      // Batch save event listeners
+      document.getElementById('iosBatchNextBtn').addEventListener('click', nextBatchImage);
+      document.getElementById('iosBatchDoneBtn').addEventListener('click', closeBatchSaveModal);
+      document.getElementById('closeIosBatchModalBtn').addEventListener('click', closeBatchSaveModal);
+      document.getElementById('iosBatchSaveModal').addEventListener('click', (e) => {
+        if (e.target.id === 'iosBatchSaveModal') closeBatchSaveModal();
+      });
 
       function buildPrompt() {
         return `Ты — профессиональный редактор каруселей для Instagram, создающий контент на русском языке.
@@ -2943,11 +3200,11 @@
       });
 
       downloadBtn.addEventListener("click", () => {
-        if (isMobileDevice()) {
-          downloadImagesIndividually();
-        } else {
-          downloadZip();
-        }
+        downloadZip();
+      });
+
+      saveAllBtn.addEventListener("click", () => {
+        downloadImagesIndividually();
       });
 
       // Apply CTA changes without regenerating the carousel
