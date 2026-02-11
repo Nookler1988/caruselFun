@@ -2705,9 +2705,14 @@
         const title = (result.title || "").toString().slice(0, 60).trim();
         const slidesRaw = Array.isArray(result.slides) ? result.slides : [];
         const slides = slidesRaw
-          .map((s) => s.toString().replace(/\s+/g, " ").trim())
+          .map((s) => {
+            const text = s.toString().trim();
+            // Normalize multiple newlines to double newline (paragraph separator)
+            // But preserve intentional line breaks for chat/search layouts
+            return text.replace(/[\r\n]{3,}/g, '\n\n').replace(/\r/g, '\n');
+          })
           .filter(Boolean)
-          .map((s) => (s.length > 200 ? s.slice(0, 197) + "..." : s));
+          .map((s) => (s.length > 400 ? s.slice(0, 397) + "..." : s));
         return { title, slides };
       }
 
