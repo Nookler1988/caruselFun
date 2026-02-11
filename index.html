@@ -2208,64 +2208,217 @@
             ctx.fillStyle = `${accent}30`;
             ctx.fillRect(w * 0.08, h * 0.08, w * 0.2, h * 0.12);
           } else if (state.layout === layouts.chat) {
-            // iMessage-style chat bubbles
+            // iMessage-style chat bubbles with text
+            const paragraphs = text.split(/\n\n+|\n/).filter(p => p.trim());
+            const sentText = paragraphs[0] || text;
+            const receivedText = paragraphs[1] || '';
+            
+            // Sent bubble (right side, blue)
             const bubbleColor = "#007aff";
             const bubbleReceived = "#e5e5ea";
+            const padding = w * 0.03;
+            const maxBubbleWidth = w * 0.72;
+            const minFont = Math.round(Math.min(w, h) * 0.025);
+            
+            // Calculate sent bubble dimensions with auto-scale
+            let sentFontSize = Math.round(Math.min(w, h) * 0.038);
+            let sentLines = [];
+            let sentBubbleWidth, sentBubbleHeight;
+            
+            ctx.font = `400 ${sentFontSize}px "Manrope", sans-serif`;
+            while (sentFontSize >= minFont) {
+              const segments = parseStyledSegments(sentText);
+              const words = segmentsToWords(segments);
+              sentLines = buildLinesFromWords(ctx, words, maxBubbleWidth - padding * 2, sentFontSize, "Manrope", false);
+              const lineHeight = sentFontSize * 1.25;
+              sentBubbleHeight = sentLines.length * lineHeight + padding * 2;
+              sentBubbleWidth = Math.min(maxBubbleWidth, Math.max(...sentLines.map(l => l.width)) + padding * 2);
+              if (sentBubbleHeight <= h * 0.35) break;
+              sentFontSize -= 2;
+              ctx.font = `400 ${sentFontSize}px "Manrope", sans-serif`;
+            }
+            
+            const sentX = w - w * 0.06 - sentBubbleWidth;
+            const sentY = h * 0.12;
+            
+            // Draw sent bubble
             ctx.fillStyle = bubbleColor;
-            const sentW = w * 0.5;
-            const sentH = h * 0.12;
-            const sentX = w * 0.45;
-            const sentY = h * 0.15;
             ctx.beginPath();
-            ctx.roundRect(sentX, sentY, sentW, sentH, sentH * 0.2);
+            ctx.roundRect(sentX, sentY, sentBubbleWidth, sentBubbleHeight, sentFontSize * 0.4);
             ctx.fill();
+            // Tail for sent bubble
             ctx.beginPath();
-            ctx.moveTo(sentX + sentW - sentH * 0.1, sentY + sentH);
-            ctx.lineTo(sentX + sentW + sentH * 0.15, sentY + sentH + sentH * 0.3);
-            ctx.lineTo(sentX + sentW - sentH * 0.3, sentY + sentH);
+            ctx.moveTo(sentX + sentBubbleWidth - sentFontSize * 0.3, sentY + sentBubbleHeight);
+            ctx.lineTo(sentX + sentBubbleWidth + sentFontSize * 0.2, sentY + sentBubbleHeight + sentFontSize * 0.5);
+            ctx.lineTo(sentX + sentBubbleWidth - sentFontSize * 0.6, sentY + sentBubbleHeight);
             ctx.closePath();
             ctx.fill();
-            ctx.fillStyle = bubbleReceived;
-            const recW = w * 0.42;
-            const recH = h * 0.1;
-            const recX = w * 0.08;
-            const recY = h * 0.32;
-            ctx.beginPath();
-            ctx.roundRect(recX, recY, recW, recH, recH * 0.2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(recX + recH * 0.1, recY + recH);
-            ctx.lineTo(recX - recH * 0.15, recY + recH + recH * 0.3);
-            ctx.lineTo(recX + recH * 0.3, recY + recH);
-            ctx.closePath();
-            ctx.fill();
+            
+            // Draw sent text
+            ctx.fillStyle = "#ffffff";
+            ctx.textBaseline = "top";
+            const lineHeight = sentFontSize * 1.25;
+            let y = sentY + padding + (sentBubbleHeight - padding * 2 - sentLines.length * lineHeight) / 2;
+            const spaceWidth = ctx.measureText(" ").width;
+            
+            sentLines.forEach((line) => {
+              let x = sentX + padding;
+              line.words.forEach((word, idx) => {
+                ctx.font = `${word.weight} ${sentFontSize}px "Manrope", sans-serif`;
+                if (idx > 0 && !word.noSpaceBefore) {
+                  x += spaceWidth;
+                }
+                ctx.fillText(word.text, x, y);
+                x += word.width;
+              });
+              y += lineHeight;
+            });
+            
+            // Received bubble (left side, gray)
+            if (receivedText) {
+              let recFontSize = Math.round(Math.min(w, h) * 0.035);
+              let recLines = [];
+              let recBubbleWidth, recBubbleHeight;
+              
+              ctx.font = `400 ${recFontSize}px "Manrope", sans-serif`;
+              while (recFontSize >= minFont) {
+                const segments = parseStyledSegments(receivedText);
+                const words = segmentsToWords(segments);
+                recLines = buildLinesFromWords(ctx, words, maxBubbleWidth - padding * 2, recFontSize, "Manrope", false);
+                const recLineHeight = recFontSize * 1.25;
+                recBubbleHeight = recLines.length * recLineHeight + padding * 2;
+                recBubbleWidth = Math.min(maxBubbleWidth, Math.max(...recLines.map(l => l.width)) + padding * 2);
+                if (recBubbleHeight <= h * 0.3) break;
+                recFontSize -= 2;
+                ctx.font = `400 ${recFontSize}px "Manrope", sans-serif`;
+              }
+              
+              const recX = w * 0.06;
+              const recY = sentY + sentBubbleHeight + h * 0.04;
+              
+              // Draw received bubble
+              ctx.fillStyle = bubbleReceived;
+              ctx.beginPath();
+              ctx.roundRect(recX, recY, recBubbleWidth, recBubbleHeight, recFontSize * 0.4);
+              ctx.fill();
+              // Tail for received bubble
+              ctx.beginPath();
+              ctx.moveTo(recX + recFontSize * 0.3, recY + recBubbleHeight);
+              ctx.lineTo(recX - recFontSize * 0.2, recY + recBubbleHeight + recFontSize * 0.5);
+              ctx.lineTo(recX + recFontSize * 0.6, recY + recBubbleHeight);
+              ctx.closePath();
+              ctx.fill();
+              
+              // Draw received text
+              ctx.fillStyle = "#000000";
+              const recLineHeight = recFontSize * 1.25;
+              y = recY + padding + (recBubbleHeight - padding * 2 - recLines.length * recLineHeight) / 2;
+              
+              recLines.forEach((line) => {
+                let x = recX + padding;
+                line.words.forEach((word, idx) => {
+                  ctx.font = `${word.weight} ${recFontSize}px "Manrope", sans-serif`;
+                  if (idx > 0 && !word.noSpaceBefore) {
+                    x += spaceWidth;
+                  }
+                  ctx.fillText(word.text, x, y);
+                  x += word.width;
+                });
+                y += recLineHeight;
+              });
+            }
           } else if (state.layout === layouts.search) {
-            // Google search bar style
+            // Google search bar style with text
+            const paragraphs = text.split(/\n\n+|\n/).filter(p => p.trim());
+            const searchQuery = paragraphs[0] || text;
+            const answerText = paragraphs.slice(1).join('\n') || '';
+            
+            // Search bar background
             ctx.fillStyle = "#f1f3f4";
-            const searchBarH = h * 0.08;
-            const searchBarY = h * 0.06;
+            const searchBarH = h * 0.1;
+            const searchBarY = h * 0.08;
             ctx.beginPath();
             ctx.roundRect(w * 0.06, searchBarY, w * 0.88, searchBarH, searchBarH / 2);
             ctx.fill();
+            
+            // Search icon (magnifying glass)
             ctx.strokeStyle = "#9aa0a6";
             ctx.lineWidth = Math.max(2, Math.round(w * 0.004));
             const iconX = w * 0.1;
             const iconY = searchBarY + searchBarH / 2;
             ctx.beginPath();
-            ctx.arc(iconX, iconY - 2, searchBarH * 0.2, 0, Math.PI * 2);
+            ctx.arc(iconX, iconY - 2, searchBarH * 0.18, 0, Math.PI * 2);
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(iconX + searchBarH * 0.15, iconY + searchBarH * 0.1);
-            ctx.lineTo(iconX + searchBarH * 0.35, iconY + searchBarH * 0.3);
+            ctx.moveTo(iconX + searchBarH * 0.12, iconY + searchBarH * 0.08);
+            ctx.lineTo(iconX + searchBarH * 0.32, iconY + searchBarH * 0.28);
             ctx.stroke();
-            const colors = ["#4285f4", "#ea4335", "#fbbc05", "#34a853"];
-            const dotY = h * 0.25;
-            colors.forEach((color, i) => {
-              ctx.fillStyle = color;
-              ctx.beginPath();
-              ctx.arc(w * 0.3 + i * w * 0.08, dotY, w * 0.02, 0, Math.PI * 2);
-              ctx.fill();
-            });
+            
+            // Search query text (auto-scale)
+            ctx.fillStyle = "#202124";
+            ctx.textBaseline = "middle";
+            let searchFontSize = Math.round(searchBarH * 0.35);
+            const searchTextX = w * 0.16;
+            const maxSearchWidth = w * 0.76;
+            ctx.font = `400 ${searchFontSize}px "Manrope", sans-serif`;
+            while (ctx.measureText(searchQuery).width > maxSearchWidth && searchFontSize > 12) {
+              searchFontSize -= 2;
+              ctx.font = `400 ${searchFontSize}px "Manrope", sans-serif`;
+            }
+            ctx.fillText(searchQuery, searchTextX, searchBarY + searchBarH / 2);
+            
+            // Answer text block
+            if (answerText) {
+              const answerY = h * 0.22;
+              const answerMaxWidth = w * 0.88;
+              const answerMaxHeight = h * 0.65;
+              
+              ctx.fillStyle = "#202124";
+              ctx.textBaseline = "top";
+              let answerFontSize = Math.round(Math.min(w, h) * 0.045);
+              const minAnswerFont = Math.round(Math.min(w, h) * 0.028);
+              
+              let answerLines = [];
+              while (answerFontSize >= minAnswerFont) {
+                ctx.font = `500 ${answerFontSize}px "Manrope", sans-serif`;
+                const segments = parseStyledSegments(answerText);
+                const words = segmentsToWords(segments);
+                answerLines = buildLinesFromWords(ctx, words, answerMaxWidth, answerFontSize, "Manrope", false);
+                const lineHeight = answerFontSize * 1.3;
+                if (answerLines.length * lineHeight <= answerMaxHeight) break;
+                answerFontSize -= 2;
+              }
+              
+              const lineHeight = answerFontSize * 1.3;
+              let y = answerY;
+              const spaceWidth = ctx.measureText(" ").width;
+              
+              answerLines.forEach((line) => {
+                let x = w * 0.06;
+                line.words.forEach((word, idx) => {
+                  ctx.font = `${word.weight} ${answerFontSize}px "Manrope", sans-serif`;
+                  ctx.fillStyle = word.mode === "accent" ? "#1a73e8" : "#202124";
+                  if (idx > 0 && !word.noSpaceBefore) {
+                    x += spaceWidth;
+                  }
+                  ctx.fillText(word.text, x, y);
+                  x += word.width;
+                });
+                y += lineHeight;
+              });
+            }
+          }
+
+          // Skip standard text rendering for chat and search layouts (they have custom text rendering)
+          if (state.layout === layouts.chat || state.layout === layouts.search) {
+            // Footer only
+            const footerSize = Math.round(Math.min(w, h) * 0.022);
+            ctx.font = `${footerSize}px "Manrope", sans-serif`;
+            ctx.fillStyle = state.palette.muted;
+            const footerY = h - Math.max(20, Math.round(h * 0.06));
+            const slideText = `Слайд ${index + 1} / ${total}`;
+            ctx.fillText(slideText, w * 0.06, footerY);
+            return;
           }
 
           // Use the same text layout as other slides instead of centered
@@ -2381,6 +2534,25 @@
             right: "Фото: право",
           };
           // drawImageModeHint(ctx, rect, labelMap[slideImage.mode] || "Фото", accent);
+        }
+
+        // Skip standard text rendering for chat and search layouts (they have custom text rendering)
+        if (state.layout === layouts.chat || state.layout === layouts.search) {
+          // Footer only
+          const footerSize = Math.round(Math.min(w, h) * 0.022);
+          ctx.font = `${footerSize}px "Manrope", sans-serif`;
+          ctx.fillStyle = state.palette.muted;
+          const footerY = h - Math.max(20, Math.round(h * 0.06));
+          const slideText = `Слайд ${index + 1} / ${total}`;
+          ctx.fillText(slideText, w * 0.06, footerY);
+
+          const handle = ctaInput.value.trim();
+          if (handle) {
+            ctx.textAlign = "right";
+            ctx.fillText(handle, w - w * 0.06, footerY);
+            ctx.textAlign = "left";
+          }
+          return;
         }
 
         const needsTightText =
