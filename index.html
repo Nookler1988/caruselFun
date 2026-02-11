@@ -673,6 +673,141 @@
       .hidden {
         display: none !important;
       }
+
+      /* iOS Save Modal Styles */
+      .ios-save-card {
+        width: min(420px, 95vw);
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .ios-save-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--stroke);
+      }
+
+      .ios-save-header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: var(--text);
+      }
+
+      .ios-close-btn {
+        padding: 4px 10px;
+        font-size: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+      }
+
+      .ios-save-image-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px 0;
+        overflow: hidden;
+      }
+
+      .ios-save-image-container img {
+        max-width: 100%;
+        max-height: 55vh;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        object-fit: contain;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: default;
+      }
+
+      .ios-save-instructions {
+        text-align: center;
+        padding: 16px;
+        background: rgba(0, 212, 255, 0.08);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 212, 255, 0.2);
+      }
+
+      .ios-save-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+        animation: pulse 2s infinite;
+      }
+
+      .ios-save-instructions p {
+        margin: 4px 0;
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .ios-save-instructions strong {
+        color: var(--accent-1);
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      /* Save button states */
+      .save-btn {
+        transition: all 0.2s ease;
+      }
+
+      .save-btn.saving {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+
+      .save-btn.success {
+        background: rgba(34, 197, 94, 0.8) !important;
+      }
+
+      .save-btn.error {
+        background: rgba(239, 68, 68, 0.8) !important;
+      }
+
+      /* Toast notifications */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: rgba(14, 18, 32, 0.95);
+        border: 1px solid var(--stroke);
+        border-radius: 12px;
+        padding: 16px 24px;
+        color: var(--text);
+        font-size: 14px;
+        z-index: 1000;
+        opacity: 0;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      .toast.success {
+        border-color: rgba(34, 197, 94, 0.5);
+      }
+
+      .toast.error {
+        border-color: rgba(239, 68, 68, 0.5);
+      }
+
+      .toast-icon {
+        font-size: 20px;
+      }
     </style>
   </head>
   <body>
@@ -986,6 +1121,24 @@
       </div>
     </div>
 
+    <!-- iOS Save Modal -->
+    <div class="modal" id="iosSaveModal" aria-hidden="true">
+      <div class="modal-card ios-save-card">
+        <div class="ios-save-header">
+          <h3>Сохранение фото</h3>
+          <button class="ghost ios-close-btn" id="closeIosModalBtn">✕</button>
+        </div>
+        <div class="ios-save-image-container">
+          <img id="iosSaveImage" src="" alt="Slide" />
+        </div>
+        <div class="ios-save-instructions">
+          <div class="ios-save-icon">👆</div>
+          <p><strong>Удерживайте палец</strong> на изображении</p>
+          <p>и выберите <strong>«Сохранить в Фото»</strong></p>
+        </div>
+      </div>
+    </div>
+
     <input id="slideImageInput" type="file" accept="image/*" style="display: none" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
@@ -1025,6 +1178,139 @@
 
       function isMobileDevice() {
         return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+
+      function isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      }
+
+      // Check if Web Share API with files is supported
+      function canShareFiles() {
+        return navigator.share && navigator.canShare && typeof navigator.canShare === 'function';
+      }
+
+      // Save slide to gallery with optimal method based on device
+      async function saveSlideToGallery(blob, filename, buttonElement = null) {
+        // Update button state if provided
+        if (buttonElement) {
+          buttonElement.classList.add('saving');
+          buttonElement.innerHTML = '⏳';
+        }
+
+        try {
+          // Method 1: Web Share API (best for mobile - shows "Save Image" option)
+          if (canShareFiles() && isMobileDevice()) {
+            const file = new File([blob], filename, { type: 'image/jpeg' });
+            const shareData = { files: [file] };
+
+            if (navigator.canShare(shareData)) {
+              await navigator.share(shareData);
+              showToast('✅ Откройте меню и выберите «Сохранить изображение»', 'success');
+              if (buttonElement) {
+                buttonElement.classList.remove('saving');
+                buttonElement.classList.add('success');
+                buttonElement.innerHTML = '✓';
+                setTimeout(() => {
+                  buttonElement.classList.remove('success');
+                  buttonElement.innerHTML = '📥';
+                }, 2000);
+              }
+              return true;
+            }
+          }
+
+          // Method 2: iOS Long-Press Modal
+          if (isIOS()) {
+            const url = URL.createObjectURL(blob);
+            const iosModal = document.getElementById('iosSaveModal');
+            const iosImage = document.getElementById('iosSaveImage');
+
+            iosImage.src = url;
+            iosModal.classList.add('open');
+            iosModal.setAttribute('aria-hidden', 'false');
+
+            // Cleanup URL when modal closes
+            const cleanup = () => {
+              URL.revokeObjectURL(url);
+              iosModal.removeEventListener('click', closeHandler);
+            };
+
+            const closeHandler = (e) => {
+              if (e.target === iosModal || e.target.closest('.ios-close-btn')) {
+                cleanup();
+              }
+            };
+
+            iosModal.addEventListener('click', closeHandler);
+
+            if (buttonElement) {
+              buttonElement.classList.remove('saving');
+              buttonElement.innerHTML = '📥';
+            }
+            return true;
+          }
+
+          // Method 3: Classic download (for Android and desktop)
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Delay cleanup for Android
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+          showToast('✅ Изображение сохраняется...', 'success');
+
+          if (buttonElement) {
+            buttonElement.classList.remove('saving');
+            buttonElement.classList.add('success');
+            buttonElement.innerHTML = '✓';
+            setTimeout(() => {
+              buttonElement.classList.remove('success');
+              buttonElement.innerHTML = '📥';
+            }, 2000);
+          }
+          return true;
+
+        } catch (error) {
+          console.error('Save failed:', error);
+          showToast('❌ Ошибка сохранения', 'error');
+
+          if (buttonElement) {
+            buttonElement.classList.remove('saving');
+            buttonElement.classList.add('error');
+            buttonElement.innerHTML = '✕';
+            setTimeout(() => {
+              buttonElement.classList.remove('error');
+              buttonElement.innerHTML = '📥';
+            }, 2000);
+          }
+          return false;
+        }
+      }
+
+      // Show toast notification
+      function showToast(message, type = 'info') {
+        // Remove existing toasts
+        const existing = document.querySelector('.toast');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<span class="toast-icon">${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ️'}</span><span>${message}</span>`;
+        document.body.appendChild(toast);
+
+        // Trigger animation
+        requestAnimationFrame(() => toast.classList.add('show'));
+
+        // Remove after delay
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
       }
 
       // Telegram Bot configuration
@@ -1968,68 +2254,55 @@
           container.appendChild(canvas);
           
           // Add download button for mobile
-          const downloadBtn = document.createElement("button");
-          downloadBtn.innerHTML = "📥";
-          downloadBtn.style.position = "absolute";
-          downloadBtn.style.top = "8px";
-          downloadBtn.style.right = "8px";
-          downloadBtn.style.background = "rgba(0, 0, 0, 0.5)";
-          downloadBtn.style.border = "none";
-          downloadBtn.style.borderRadius = "50%";
-          downloadBtn.style.width = "32px";
-          downloadBtn.style.height = "32px";
-          downloadBtn.style.color = "white";
-          downloadBtn.style.fontSize = "14px";
-          downloadBtn.style.cursor = "pointer";
-          downloadBtn.style.zIndex = "10";
-          downloadBtn.style.display = "none"; // Initially hidden, shown on mobile
-          downloadBtn.style.backdropFilter = "blur(4px)";
-          
-          // Add download functionality
-          downloadBtn.addEventListener("click", async (e) => {
+          const saveBtn = document.createElement("button");
+          saveBtn.innerHTML = "📥";
+          saveBtn.className = "save-btn";
+          saveBtn.style.position = "absolute";
+          saveBtn.style.top = "8px";
+          saveBtn.style.right = "8px";
+          saveBtn.style.background = "rgba(0, 0, 0, 0.6)";
+          saveBtn.style.border = "none";
+          saveBtn.style.borderRadius = "50%";
+          saveBtn.style.width = "36px";
+          saveBtn.style.height = "36px";
+          saveBtn.style.color = "white";
+          saveBtn.style.fontSize = "16px";
+          saveBtn.style.cursor = "pointer";
+          saveBtn.style.zIndex = "10";
+          saveBtn.style.display = "none"; // Initially hidden, shown on mobile
+          saveBtn.style.backdropFilter = "blur(4px)";
+          saveBtn.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.3)";
+          saveBtn.title = "Сохранить в галерею";
+
+          // Add save functionality with optimal method
+          saveBtn.addEventListener("click", async (e) => {
             e.stopPropagation(); // Prevent opening image modal
-            
+
             // Create temporary canvas to draw the slide
             const tempCanvas = document.createElement("canvas");
             const { w, h } = state.size;
             tempCanvas.width = w;
             tempCanvas.height = h;
-            
+
             // Redraw the slide on the temporary canvas
             drawSlide(tempCanvas, text, index, allSlides.length, index === 0, slideImage, isCta);
-            
+
             // Convert to blob
             const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/jpeg', 0.92));
-            
-            // Try to send via Telegram
-            const images = [{
-              blob: blob,
-              filename: `slide-${index + 1}_${w}x${h}.jpg`
-            }];
-            
-            const sentToTelegram = await sendToTelegram(images);
-            
-            if (!sentToTelegram) {
-              // Fallback: direct download
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.download = `slide-${index + 1}_${w}x${h}.jpg`;
-              link.href = url;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(url);
-            }
+            const filename = `slide-${index + 1}_${w}x${h}.jpg`;
+
+            // Use the new save function
+            await saveSlideToGallery(blob, filename, saveBtn);
           });
-          
-          container.appendChild(downloadBtn);
+
+          container.appendChild(saveBtn);
           card.appendChild(container);
-          
-          // Show download button on mobile
-          if (isMobileDevice()) {
-            downloadBtn.style.display = "flex";
-            downloadBtn.style.alignItems = "center";
-            downloadBtn.style.justifyContent = "center";
+
+          // Show download button on all touch devices and mobile
+          if (isMobileDevice() || window.matchMedia('(pointer: coarse)').matches) {
+            saveBtn.style.display = "flex";
+            saveBtn.style.alignItems = "center";
+            saveBtn.style.justifyContent = "center";
           }
           
           card.addEventListener("click", () => openImageModal(index));
@@ -2361,6 +2634,25 @@
       });
 
       closeModalBtn.addEventListener("click", closeImageModal);
+
+      // iOS Save Modal close handler
+      const iosSaveModal = document.getElementById('iosSaveModal');
+      const closeIosModalBtn = document.getElementById('closeIosModalBtn');
+
+      function closeIosModal() {
+        iosSaveModal.classList.remove('open');
+        iosSaveModal.setAttribute('aria-hidden', 'true');
+        const iosImage = document.getElementById('iosSaveImage');
+        if (iosImage.src) {
+          URL.revokeObjectURL(iosImage.src);
+          iosImage.src = '';
+        }
+      }
+
+      closeIosModalBtn.addEventListener('click', closeIosModal);
+      iosSaveModal.addEventListener('click', (e) => {
+        if (e.target === iosSaveModal) closeIosModal();
+      });
 
       imageModal.addEventListener("click", (event) => {
         const btn = event.target.closest("[data-mode]");
