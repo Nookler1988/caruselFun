@@ -370,6 +370,48 @@
         box-shadow: 4px 4px 0 rgba(47, 128, 237, 0.2);
       }
 
+      /* Chat theme preview */
+      .layout-thumb[data-layout="chat"] {
+        background: linear-gradient(180deg, #f5f5f7 0%, #e8e8ed 100%);
+      }
+      .layout-thumb[data-layout="chat"]::before {
+        content: "";
+        position: absolute;
+        right: 6px;
+        top: 6px;
+        width: 26px;
+        height: 14px;
+        background: #007aff;
+        border-radius: 10px;
+        box-shadow: -20px 18px 0 -4px #e5e5ea, -20px 18px 0 -2px #fff;
+      }
+
+      /* Search theme preview */
+      .layout-thumb[data-layout="search"] {
+        background: #ffffff;
+      }
+      .layout-thumb[data-layout="search"]::before {
+        content: "";
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        right: 8px;
+        height: 10px;
+        background: #f1f3f4;
+        border-radius: 10px;
+        border: 1px solid #dfe1e5;
+      }
+      .layout-thumb[data-layout="search"]::after {
+        content: "";
+        position: absolute;
+        left: 12px;
+        top: 11px;
+        width: 6px;
+        height: 6px;
+        border: 1.5px solid #9aa0a6;
+        border-radius: 50%;
+      }
+
       .color-thumb[data-palette="linen"] {
         background: linear-gradient(135deg, #fbf8f3, #e6e1d6);
       }
@@ -1033,6 +1075,14 @@
                 <div class="layout-thumb" data-layout="shadow"></div>
                 Shadow
               </button>
+              <button class="chip" data-layout="chat" type="button">
+                <div class="layout-thumb" data-layout="chat"></div>
+                Чат
+              </button>
+              <button class="chip" data-layout="search" type="button">
+                <div class="layout-thumb" data-layout="search"></div>
+                Поиск
+              </button>
             </div>
           </div>
         </div>
@@ -1647,6 +1697,13 @@
         circle: "circle",
         diamond: "diamond",
         shadow: "shadow",
+        chat: "chat",
+        search: "search",
+      };
+        waves: "waves",
+        circle: "circle",
+        diamond: "diamond",
+        shadow: "shadow",
       };
 
       function parseSize(value) {
@@ -1987,6 +2044,71 @@
           ctx.fillRect(w * 0.08 + offset, h * 0.08 + offset, w * 0.2, h * 0.12);
           ctx.fillStyle = `${accent}30`;
           ctx.fillRect(w * 0.08, h * 0.08, w * 0.2, h * 0.12);
+        } else if (state.layout === layouts.chat) {
+          // iMessage-style chat bubbles
+          const bubbleColor = "#007aff";
+          const bubbleReceived = "#e5e5ea";
+          // Sent bubble (right side)
+          ctx.fillStyle = bubbleColor;
+          const sentW = w * 0.5;
+          const sentH = h * 0.12;
+          const sentX = w * 0.45;
+          const sentY = h * 0.15;
+          ctx.beginPath();
+          ctx.roundRect(sentX, sentY, sentW, sentH, sentH * 0.2);
+          ctx.fill();
+          // Tail for sent bubble
+          ctx.beginPath();
+          ctx.moveTo(sentX + sentW - sentH * 0.1, sentY + sentH);
+          ctx.lineTo(sentX + sentW + sentH * 0.15, sentY + sentH + sentH * 0.3);
+          ctx.lineTo(sentX + sentW - sentH * 0.3, sentY + sentH);
+          ctx.closePath();
+          ctx.fill();
+          // Received bubble (left side)
+          ctx.fillStyle = bubbleReceived;
+          const recW = w * 0.42;
+          const recH = h * 0.1;
+          const recX = w * 0.08;
+          const recY = h * 0.32;
+          ctx.beginPath();
+          ctx.roundRect(recX, recY, recW, recH, recH * 0.2);
+          ctx.fill();
+          // Tail for received bubble
+          ctx.beginPath();
+          ctx.moveTo(recX + recH * 0.1, recY + recH);
+          ctx.lineTo(recX - recH * 0.15, recY + recH + recH * 0.3);
+          ctx.lineTo(recX + recH * 0.3, recY + recH);
+          ctx.closePath();
+          ctx.fill();
+        } else if (state.layout === layouts.search) {
+          // Google search bar style
+          ctx.fillStyle = "#f1f3f4";
+          const searchBarH = h * 0.08;
+          const searchBarY = h * 0.06;
+          ctx.beginPath();
+          ctx.roundRect(w * 0.06, searchBarY, w * 0.88, searchBarH, searchBarH / 2);
+          ctx.fill();
+          // Search icon (magnifying glass)
+          ctx.strokeStyle = "#9aa0a6";
+          ctx.lineWidth = Math.max(2, Math.round(w * 0.004));
+          const iconX = w * 0.1;
+          const iconY = searchBarY + searchBarH / 2;
+          ctx.beginPath();
+          ctx.arc(iconX, iconY - 2, searchBarH * 0.2, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(iconX + searchBarH * 0.15, iconY + searchBarH * 0.1);
+          ctx.lineTo(iconX + searchBarH * 0.35, iconY + searchBarH * 0.3);
+          ctx.stroke();
+          // Google dots decoration
+          const colors = ["#4285f4", "#ea4335", "#fbbc05", "#34a853"];
+          const dotY = h * 0.25;
+          colors.forEach((color, i) => {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(w * 0.3 + i * w * 0.08, dotY, w * 0.02, 0, Math.PI * 2);
+            ctx.fill();
+          });
         }
 
         // CTA Slide - Same layout as other slides
@@ -2090,6 +2212,65 @@
             ctx.fillRect(w * 0.08 + offset, h * 0.08 + offset, w * 0.2, h * 0.12);
             ctx.fillStyle = `${accent}30`;
             ctx.fillRect(w * 0.08, h * 0.08, w * 0.2, h * 0.12);
+          } else if (state.layout === layouts.chat) {
+            // iMessage-style chat bubbles
+            const bubbleColor = "#007aff";
+            const bubbleReceived = "#e5e5ea";
+            ctx.fillStyle = bubbleColor;
+            const sentW = w * 0.5;
+            const sentH = h * 0.12;
+            const sentX = w * 0.45;
+            const sentY = h * 0.15;
+            ctx.beginPath();
+            ctx.roundRect(sentX, sentY, sentW, sentH, sentH * 0.2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(sentX + sentW - sentH * 0.1, sentY + sentH);
+            ctx.lineTo(sentX + sentW + sentH * 0.15, sentY + sentH + sentH * 0.3);
+            ctx.lineTo(sentX + sentW - sentH * 0.3, sentY + sentH);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = bubbleReceived;
+            const recW = w * 0.42;
+            const recH = h * 0.1;
+            const recX = w * 0.08;
+            const recY = h * 0.32;
+            ctx.beginPath();
+            ctx.roundRect(recX, recY, recW, recH, recH * 0.2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(recX + recH * 0.1, recY + recH);
+            ctx.lineTo(recX - recH * 0.15, recY + recH + recH * 0.3);
+            ctx.lineTo(recX + recH * 0.3, recY + recH);
+            ctx.closePath();
+            ctx.fill();
+          } else if (state.layout === layouts.search) {
+            // Google search bar style
+            ctx.fillStyle = "#f1f3f4";
+            const searchBarH = h * 0.08;
+            const searchBarY = h * 0.06;
+            ctx.beginPath();
+            ctx.roundRect(w * 0.06, searchBarY, w * 0.88, searchBarH, searchBarH / 2);
+            ctx.fill();
+            ctx.strokeStyle = "#9aa0a6";
+            ctx.lineWidth = Math.max(2, Math.round(w * 0.004));
+            const iconX = w * 0.1;
+            const iconY = searchBarY + searchBarH / 2;
+            ctx.beginPath();
+            ctx.arc(iconX, iconY - 2, searchBarH * 0.2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(iconX + searchBarH * 0.15, iconY + searchBarH * 0.1);
+            ctx.lineTo(iconX + searchBarH * 0.35, iconY + searchBarH * 0.3);
+            ctx.stroke();
+            const colors = ["#4285f4", "#ea4335", "#fbbc05", "#34a853"];
+            const dotY = h * 0.25;
+            colors.forEach((color, i) => {
+              ctx.fillStyle = color;
+              ctx.beginPath();
+              ctx.arc(w * 0.3 + i * w * 0.08, dotY, w * 0.02, 0, Math.PI * 2);
+              ctx.fill();
+            });
           }
 
           // Use the same text layout as other slides instead of centered
