@@ -982,7 +982,7 @@
           <div class="step-title">Вставь результат от ИИ и сгенерируй</div>
         </div>
         <p class="step-description">Отправь промпт в любую нейросеть (ChatGPT, Claude, Gemini), вставь полученный JSON и нажми кнопку</p>
-        <textarea id="jsonInput" placeholder="Вставьте JSON от ИИ здесь..."></textarea>
+        <textarea id="jsonInput" placeholder="Вставьте JSON от ИИ или просто текст для автоматической генерации..."></textarea>
         <div class="step-header" style="margin-top: 16px;">
           <div class="step-number">3</div>
           <button class="primary" id="fromJsonBtn" style="height: 50px; font-size: 15px; padding: 0 22px; width: auto;">✨ Сгенерировать карусель</button>
@@ -3245,60 +3245,113 @@
       fromJsonBtn.addEventListener("click", () => {
         const raw = sanitizeJsonInput(jsonInput.value);
         if (!raw) {
-          alert("Вставьте JSON.");
+          alert("Вставьте JSON или текст для генерации карусели.");
           return;
         }
+        
+        // Try to parse as JSON first
+        let parsed = null;
+        let jsonError = null;
+        
         try {
-          const parsed = JSON.parse(raw);
-          
-          // Validate JSON structure
-          if (typeof parsed !== 'object' || parsed === null) {
-            alert("JSON должен быть объектом с полями 'title' и 'slides'.");
-            return;
-          }
-          
-          if (!('title' in parsed) || !('slides' in parsed)) {
-            alert("JSON должен содержать поля 'title' и 'slides'.\n\nПример:\n{\n  \"title\": \"...\",\n  \"slides\": [\"...\", \"...\"]\n}");
-            return;
-          }
-          
-          const normalized = normalizeAiResult(parsed);
-          if (!normalized.title && !normalized.slides.length) {
-            alert("JSON без данных. Проверьте, что поля 'title' и 'slides' не пустые.");
-            return;
-          }
-          applyStateFromInputs();
-          state.title = normalized.title;
-          state.slides = normalized.slides;
-          state.slideImages = {};
-          renderPreviews();
-          
-          // Плавная прокрутка к результатам
-          setTimeout(() => {
-            const resultsSection = document.getElementById("resultsSection");
-            if (resultsSection) {
-              resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          }, 100);
+          // Try direct parsing
+          parsed = JSON.parse(raw);
         } catch (err) {
-          console.error("JSON Parse Error:", err);
+          jsonError = err;
+          
+          // Try to extract JSON from text
+          const jsonMatch = raw.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              parsed = JSON.parse(jsonMatch[0]);
+              jsonError = null;
+            } catch (extractErr) {
+              jsonError = extractErr;
+            }
+          }
+        }
+        
+        // If JSON parsing failed, try to convert text to carousel structure
+        if (!parsed && jsonError) {
+          // Check if it's plain text (not JSON)
+          if (!raw.trim().startsWith('{')) {
+            // Convert text to carousel structure
+            const lines = raw.split(/\n\n+|\n/).filter(line => line.trim());
+            if (lines.length > 0) {
+              // First line is title, rest are slides
+              parsed = {
+                title: lines[0].trim(),
+                slides: lines.slice(1).map(line => line.trim()).filter(line => line)
+              };
+              
+              // If only one line, split by sentences
+              if (parsed.slides.length === 0) {
+                const sentences = lines[0].match(/[^.!?]+[.!?]+/g) || [lines[0]];
+                if (sentences.length > 1) {
+                  parsed.title = sentences[0].trim();
+                  parsed.slides = sentences.slice(1).map(s => s.trim()).filter(s => s);
+                } else {
+                  // Single text - make it the only slide
+                  parsed.slides = [lines[0].trim()];
+                }
+              }
+              
+              console.log("Auto-converted text to carousel:", parsed);
+            }
+          }
+        }
+        
+        // If still no valid data, show error
+        if (!parsed) {
+          console.error("JSON Parse Error:", jsonError);
           console.error("Input text:", raw.substring(0, 200));
           
-          // Find position of error
           let errorMsg = "Некорректный JSON.";
-          if (err.message) {
-            const match = err.message.match(/position (\d+)/);
+          if (jsonError && jsonError.message) {
+            const match = jsonError.message.match(/position (\d+)/);
             if (match) {
               const pos = parseInt(match[1]);
               const context = raw.substring(Math.max(0, pos - 30), Math.min(raw.length, pos + 30));
               errorMsg += `\n\nОшибка около:\n...${context}...\n${' '.repeat(33)}^`;
             } else {
-              errorMsg += `\n\n${err.message}`;
+              errorMsg += `\n\n${jsonError.message}`;
             }
           }
-          errorMsg += "\n\nПодсказка: скопируйте JSON точно без лишних символов до { и после }";
+          errorMsg += "\n\nПодсказка: вставьте JSON с полями 'title' и 'slides', или просто текст для автоматической конвертации.";
           alert(errorMsg);
+          return;
         }
+        
+        // Validate structure
+        if (typeof parsed !== 'object' || parsed === null) {
+          alert("Данные должны быть объектом с полями 'title' и 'slides'.");
+          return;
+        }
+        
+        if (!('title' in parsed) || !('slides' in parsed)) {
+          alert("Необходимы поля 'title' и 'slides'.\n\nПример JSON:\n{\n  \"title\": \"...\",\n  \"slides\": [\"...\", \"...\"]\n}\n\nИли просто вставьте текст — он будет автоматически разбит на слайды.");
+          return;
+        }
+        
+        const normalized = normalizeAiResult(parsed);
+        if (!normalized.title && !normalized.slides.length) {
+          alert("Нет данных для генерации. Проверьте, что поля 'title' и 'slides' не пустые.");
+          return;
+        }
+        
+        applyStateFromInputs();
+        state.title = normalized.title;
+        state.slides = normalized.slides;
+        state.slideImages = {};
+        renderPreviews();
+        
+        // Плавная прокрутка к результатам
+        setTimeout(() => {
+          const resultsSection = document.getElementById("resultsSection");
+          if (resultsSection) {
+            resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 100);
       });
 
       function sanitizeJsonInput(input) {
