@@ -2075,6 +2075,11 @@
           ctx.lineTo(recX + recH * 0.3, recY + recH);
           ctx.closePath();
           ctx.fill();
+          
+          // Draw text in chat bubbles for regular slides too
+          if (!isCta) {
+            drawChatText(ctx, text, w, h);
+          }
         } else if (state.layout === layouts.search) {
           // Google search bar style
           ctx.fillStyle = "#f1f3f4";
@@ -2104,6 +2109,11 @@
             ctx.arc(w * 0.3 + i * w * 0.08, dotY, w * 0.02, 0, Math.PI * 2);
             ctx.fill();
           });
+          
+          // Draw text in search layout for regular slides too
+          if (!isCta) {
+            drawSearchText(ctx, text, w, h);
+          }
         }
 
         // CTA Slide - Same layout as other slides
@@ -2698,6 +2708,164 @@
           ctx.textAlign = "right";
           ctx.fillText(handle, w - marginX, footerY);
           ctx.textAlign = "left";
+        }
+      }
+
+      // Helper function to draw chat text
+      function drawChatText(ctx, text, w, h) {
+        const paragraphs = text.split(/\n\n+|\n/).filter(p => p.trim());
+        const sentText = paragraphs[0] || text;
+        const receivedText = paragraphs[1] || '';
+        
+        const bubbleColor = "#007aff";
+        const bubbleReceived = "#e5e5ea";
+        const padding = w * 0.03;
+        const maxBubbleWidth = w * 0.72;
+        const minFont = Math.round(Math.min(w, h) * 0.025);
+        
+        // Sent bubble text
+        let sentFontSize = Math.round(Math.min(w, h) * 0.038);
+        let sentLines = [];
+        let sentBubbleWidth, sentBubbleHeight;
+        
+        ctx.font = `400 ${sentFontSize}px "Manrope", sans-serif`;
+        while (sentFontSize >= minFont) {
+          const segments = parseStyledSegments(sentText);
+          const words = segmentsToWords(segments);
+          sentLines = buildLinesFromWords(ctx, words, maxBubbleWidth - padding * 2, sentFontSize, "Manrope", false);
+          const lineHeight = sentFontSize * 1.25;
+          sentBubbleHeight = sentLines.length * lineHeight + padding * 2;
+          sentBubbleWidth = Math.min(maxBubbleWidth, Math.max(...sentLines.map(l => l.width)) + padding * 2);
+          if (sentBubbleHeight <= h * 0.35) break;
+          sentFontSize -= 2;
+          ctx.font = `400 ${sentFontSize}px "Manrope", sans-serif`;
+        }
+        
+        const sentX = w - w * 0.06 - sentBubbleWidth;
+        const sentY = h * 0.12;
+        
+        // Draw sent text
+        ctx.fillStyle = "#ffffff";
+        ctx.textBaseline = "top";
+        const lineHeight = sentFontSize * 1.25;
+        let y = sentY + padding + (sentBubbleHeight - padding * 2 - sentLines.length * lineHeight) / 2;
+        const spaceWidth = ctx.measureText(" ").width;
+        
+        sentLines.forEach((line) => {
+          let x = sentX + padding;
+          line.words.forEach((word, idx) => {
+            ctx.font = `${word.weight} ${sentFontSize}px "Manrope", sans-serif`;
+            if (idx > 0 && !word.noSpaceBefore) {
+              x += spaceWidth;
+            }
+            ctx.fillText(word.text, x, y);
+            x += word.width;
+          });
+          y += lineHeight;
+        });
+        
+        // Received bubble text
+        if (receivedText) {
+          let recFontSize = Math.round(Math.min(w, h) * 0.035);
+          let recLines = [];
+          let recBubbleWidth, recBubbleHeight;
+          
+          ctx.font = `400 ${recFontSize}px "Manrope", sans-serif`;
+          while (recFontSize >= minFont) {
+            const segments = parseStyledSegments(receivedText);
+            const words = segmentsToWords(segments);
+            recLines = buildLinesFromWords(ctx, words, maxBubbleWidth - padding * 2, recFontSize, "Manrope", false);
+            const recLineHeight = recFontSize * 1.25;
+            recBubbleHeight = recLines.length * recLineHeight + padding * 2;
+            recBubbleWidth = Math.min(maxBubbleWidth, Math.max(...recLines.map(l => l.width)) + padding * 2);
+            if (recBubbleHeight <= h * 0.3) break;
+            recFontSize -= 2;
+            ctx.font = `400 ${recFontSize}px "Manrope", sans-serif`;
+          }
+          
+          const recX = w * 0.06;
+          const recY = sentY + sentBubbleHeight + h * 0.04;
+          
+          // Draw received text
+          ctx.fillStyle = "#000000";
+          const recLineHeight = recFontSize * 1.25;
+          y = recY + padding + (recBubbleHeight - padding * 2 - recLines.length * recLineHeight) / 2;
+          
+          recLines.forEach((line) => {
+            let x = recX + padding;
+            line.words.forEach((word, idx) => {
+              ctx.font = `${word.weight} ${recFontSize}px "Manrope", sans-serif`;
+              if (idx > 0 && !word.noSpaceBefore) {
+                x += spaceWidth;
+              }
+              ctx.fillText(word.text, x, y);
+              x += word.width;
+            });
+            y += recLineHeight;
+          });
+        }
+      }
+
+      // Helper function to draw search text
+      function drawSearchText(ctx, text, w, h) {
+        const paragraphs = text.split(/\n\n+|\n/).filter(p => p.trim());
+        const searchQuery = paragraphs[0] || text;
+        const answerText = paragraphs.slice(1).join('\n') || '';
+        
+        // Search bar text
+        ctx.fillStyle = "#202124";
+        ctx.textBaseline = "middle";
+        let searchFontSize = Math.round(h * 0.1 * 0.35);
+        const searchBarH = h * 0.08;
+        const searchBarY = h * 0.06;
+        const searchTextX = w * 0.16;
+        const maxSearchWidth = w * 0.76;
+        ctx.font = `400 ${searchFontSize}px "Manrope", sans-serif`;
+        while (ctx.measureText(searchQuery).width > maxSearchWidth && searchFontSize > 12) {
+          searchFontSize -= 2;
+          ctx.font = `400 ${searchFontSize}px "Manrope", sans-serif`;
+        }
+        ctx.fillText(searchQuery, searchTextX, searchBarY + searchBarH / 2);
+        
+        // Answer text block
+        if (answerText) {
+          const answerY = h * 0.22;
+          const answerMaxWidth = w * 0.88;
+          const answerMaxHeight = h * 0.65;
+          
+          ctx.fillStyle = "#202124";
+          ctx.textBaseline = "top";
+          let answerFontSize = Math.round(Math.min(w, h) * 0.045);
+          const minAnswerFont = Math.round(Math.min(w, h) * 0.028);
+          
+          let answerLines = [];
+          while (answerFontSize >= minAnswerFont) {
+            ctx.font = `500 ${answerFontSize}px "Manrope", sans-serif`;
+            const segments = parseStyledSegments(answerText);
+            const words = segmentsToWords(segments);
+            answerLines = buildLinesFromWords(ctx, words, answerMaxWidth, answerFontSize, "Manrope", false);
+            const lineHeight = answerFontSize * 1.3;
+            if (answerLines.length * lineHeight <= answerMaxHeight) break;
+            answerFontSize -= 2;
+          }
+          
+          const lineHeight = answerFontSize * 1.3;
+          let y = answerY;
+          const spaceWidth = ctx.measureText(" ").width;
+          
+          answerLines.forEach((line) => {
+            let x = w * 0.06;
+            line.words.forEach((word, idx) => {
+              ctx.font = `${word.weight} ${answerFontSize}px "Manrope", sans-serif`;
+              ctx.fillStyle = word.mode === "accent" ? "#1a73e8" : "#202124";
+              if (idx > 0 && !word.noSpaceBefore) {
+                x += spaceWidth;
+              }
+              ctx.fillText(word.text, x, y);
+              x += word.width;
+            });
+            y += lineHeight;
+          });
         }
       }
 
