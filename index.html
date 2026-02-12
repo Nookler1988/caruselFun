@@ -972,6 +972,10 @@
           <div class="step-title">Скопируй промпт</div>
         </div>
         <p class="step-description">Нажми кнопку ниже, чтобы скопировать промпт для ИИ</p>
+        <div class="field" style="margin-bottom: 16px;">
+          <label for="topicInput">Тема карусели</label>
+          <input id="topicInput" type="text" placeholder="Введите тему карусели (например: Как начать бизнес с нуля)" />
+        </div>
         <button class="primary" id="copyPromptBtn" style="height: 50px; font-size: 15px; padding: 0 22px; width: auto; display: inline-block; justify-self: start; background: linear-gradient(135deg, var(--accent-1), var(--accent-2));">📋 Скопировать промпт</button>
       </section>
 
@@ -1350,9 +1354,16 @@
       const empty = document.getElementById("empty");
       const ctaInput = document.getElementById("ctaInput");
       const ctaTextInput = document.getElementById("ctaTextInput");
+      const topicInput = document.getElementById("topicInput");
       const imageModal = document.getElementById("imageModal");
       const closeModalBtn = document.getElementById("closeModalBtn");
       const slideImageInput = document.getElementById("slideImageInput");
+
+      // Global error handler to catch JavaScript errors
+      window.onerror = function(message, source, lineno, colno, error) {
+        console.error("JavaScript Error:", message, "at line", lineno, "column", colno);
+        return false;
+      };
 
       const state = {
         slides: [],
@@ -1506,18 +1517,27 @@
       }
 
       // Telegram Bot configuration
-      const BOT_TOKEN = '8503919294:AAGaBNdKywlYwo9vAJA0VQNiO0PBBL4ccek';
+      // Telegram Bot configuration - DO NOT USE CLIENT-SIDE IN PRODUCTION
+      // This is a placeholder that should be handled server-side in real applications
+      const BOT_TOKEN = '';
 
       // Function to send images via Telegram Bot
       async function sendToTelegram(images) {
+        // Check if bot token is configured
+        if (!BOT_TOKEN) {
+          console.warn('Telegram bot token not configured. Server-side implementation required for production.');
+          alert('❌ Токен Telegram-бота не настроен. Для отправки в Telegram требуется серверная реализация.');
+          return false;
+        }
+
         // Get user ID from Telegram WebApp
         let userId = null;
-        
+
         // Try to get from Telegram WebApp
         if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
           userId = window.Telegram.WebApp.initDataUnsafe.user.id;
         }
-        
+
         // Fallback: try to parse from URL parameters
         if (!userId) {
           const urlParams = new URLSearchParams(window.location.search);
@@ -1531,7 +1551,7 @@
             }
           }
         }
-        
+
         if (!userId) {
           // Not in Telegram WebApp - use fallback download
           console.log('Not in Telegram WebApp, using fallback download');
@@ -1551,15 +1571,15 @@
           const formData = new FormData();
           formData.append('chat_id', userId);
           formData.append('photo', images[i].blob, images[i].filename);
-          
+
           try {
             const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
               method: 'POST',
               body: formData
             });
-            
+
             const result = await response.json();
-            
+
             if (result.ok) {
               sentCount++;
               loadingMsg.textContent = `Отправка ${sentCount}/${images.length}...`;
@@ -1571,21 +1591,21 @@
             console.error('Send failed:', err);
             failed.push(i + 1);
           }
-          
+
           // Delay between sends (avoid rate limiting)
           if (i < images.length - 1) {
             await new Promise(r => setTimeout(r, 1500));
           }
         }
-        
+
         document.body.removeChild(loadingMsg);
-        
+
         if (failed.length === 0) {
           alert(`✅ Все ${images.length} слайдов отправлены в Telegram!`);
         } else {
           alert(`⚠️ Отправлено ${sentCount} из ${images.length}\nНе удалось: слайды №${failed.join(', ')}`);
         }
-        
+
         return failed.length === 0;
       }
 
@@ -1707,7 +1727,7 @@
       }
 
       function parseStyledSegments(text) {
-        const segments = [];
+        let segments = [];  // Changed from const to let
         let buf = "";
         let mode = "normal"; // normal | accent | bold | header | underline | highlight | quote | label
         let i = 0;
@@ -1828,11 +1848,25 @@
         }
 
         flush();
-        
+
+        // Post-process segments to handle special cases like @username in labels
+        segments = postProcessLabelSegments(segments);
+
         // Process list items - add line breaks between list items
         segments = processListItems(segments);
-        
+
         return segments;
+      }
+
+      // Function to post-process segments and handle special cases
+      function postProcessLabelSegments(segments) {
+        return segments.map(seg => {
+          // If segment has label mode and contains @, change it to normal mode and mark as special
+          if (seg.mode === "label" && seg.text.includes('@')) {
+            return { ...seg, mode: "normal", wasLabelWithAt: true };
+          }
+          return seg;
+        });
       }
 
       function processListItems(segments) {
@@ -1845,7 +1879,7 @@
           }
           
           // Pattern to match list items: •, -, *, 1., 2., etc. at the start of text or after whitespace
-          const listPattern = /(^|\s)([•\-\*]|\d+\.)\s+/g;
+          const listPattern = /(^|\s)([•*\-]|\d+\.)\s+/g;
           
           // Check if text contains list markers
           if (!listPattern.test(seg.text)) {
@@ -1865,10 +1899,18 @@
             
             // Get text before this list item (if any and not just whitespace)
             if (matchStart > lastIndex && seg.text.slice(lastIndex, matchStart).trim()) {
-              processedSegments.push({
+              // Copy all properties from original segment including special flags
+              const newSeg = {
                 text: seg.text.slice(lastIndex, matchStart),
                 mode: seg.mode
+              };
+              // Copy any special properties like wasLabelWithAt
+              Object.keys(seg).forEach(key => {
+                if (key !== 'text' && key !== 'mode') {
+                  newSeg[key] = seg[key];
+                }
               });
+              processedSegments.push(newSeg);
             }
             
             // Find the start of the next list item or end of text
@@ -1896,10 +1938,17 @@
             }
             
             // Add the list item content
-            processedSegments.push({
+            const itemSeg = {
               text: listItemContent,
               mode: seg.mode
+            };
+            // Copy any special properties like wasLabelWithAt
+            Object.keys(seg).forEach(key => {
+              if (key !== 'text' && key !== 'mode') {
+                itemSeg[key] = seg[key];
+              }
             });
+            processedSegments.push(itemSeg);
             
             isFirstItem = false;
             lastIndex = itemEnd;
@@ -1907,10 +1956,17 @@
           
           // Add any remaining text after the last list item
           if (lastIndex < seg.text.length && seg.text.slice(lastIndex).trim()) {
-            processedSegments.push({
+            const remainingSeg = {
               text: seg.text.slice(lastIndex),
               mode: seg.mode
+            };
+            // Copy any special properties like wasLabelWithAt
+            Object.keys(seg).forEach(key => {
+              if (key !== 'text' && key !== 'mode') {
+                remainingSeg[key] = seg[key];
+              }
             });
+            processedSegments.push(remainingSeg);
           }
         });
         
@@ -1930,14 +1986,24 @@
               noSpaceBefore: true,
             });
           } else {
-            const parts = seg.text.split(/\s+/).filter(Boolean);
-            parts.forEach((word) =>
+            // Don't split text into words if it was a label containing @ symbol
+            if (seg.wasLabelWithAt) {
+              // Treat the whole text as a single word
               words.push({
-                text: word,
+                text: seg.text,
                 mode: seg.mode,
-                noSpaceBefore: stickToPrev.test(word),
-              })
-            );
+                noSpaceBefore: stickToPrev.test(seg.text),
+              });
+            } else {
+              const parts = seg.text.split(/\s+/).filter(Boolean);
+              parts.forEach((word) =>
+                words.push({
+                  text: word,
+                  mode: seg.mode,
+                  noSpaceBefore: stickToPrev.test(word),
+                })
+              );
+            }
           }
         });
         return words;
@@ -1970,20 +2036,42 @@
             }
             return;
           }
-          
+
           const weight = fontWeightFor(word.mode, isTitle);
           // Header words are 1.3x larger
           const wordFontSize = word.mode === "header" ? Math.round(fontSize * 1.3) : fontSize;
           ctx.font = `${weight} ${wordFontSize}px "${fontFamily}", sans-serif`;
           const wordWidth = ctx.measureText(word.text).width;
+          
+          // Check if this word should not be broken across lines (e.g., was originally a label with @)
+          const shouldKeepTogether = word.wasLabelWithAt;
+          
           const extra = lineWords.length && !word.noSpaceBefore ? spaceWidth : 0;
-          if (lineWidth + extra + wordWidth <= maxWidth || !lineWords.length) {
-            lineWords.push({ ...word, width: wordWidth, weight });
-            lineWidth += extra + wordWidth;
+          
+          if (shouldKeepTogether) {
+            // If word should stay together, check if it fits on current line or needs new line
+            if (lineWidth + extra + wordWidth <= maxWidth) {
+              // Fits on current line
+              lineWords.push({ ...word, width: wordWidth, weight });
+              lineWidth += extra + wordWidth;
+            } else {
+              // Doesn't fit, put on new line (even if it exceeds maxWidth)
+              if (lineWords.length) {
+                lines.push({ words: lineWords, width: lineWidth });
+              }
+              lineWords = [{ ...word, width: wordWidth, weight }];
+              lineWidth = wordWidth;
+            }
           } else {
-            lines.push({ words: lineWords, width: lineWidth });
-            lineWords = [{ ...word, width: wordWidth, weight }];
-            lineWidth = wordWidth;
+            // Normal behavior for other words
+            if (lineWidth + extra + wordWidth <= maxWidth || !lineWords.length) {
+              lineWords.push({ ...word, width: wordWidth, weight });
+              lineWidth += extra + wordWidth;
+            } else {
+              lines.push({ words: lineWords, width: lineWidth });
+              lineWords = [{ ...word, width: wordWidth, weight }];
+              lineWidth = wordWidth;
+            }
           }
         });
 
@@ -2833,11 +2921,11 @@
             let wordFontSize = fontSize;
             if (word.mode === "header") {
               wordFontSize = Math.round(fontSize * 1.3);
-            } else if (word.mode === "label") {
+            } else if (word.mode === "label" || word.wasLabelWithAt) {
               wordFontSize = Math.round(fontSize * 0.9);
             }
             ctx.font = `${word.weight} ${wordFontSize}px "${state.fontFamily}", sans-serif`;
-            
+
             // Calculate text color
             let wordTextColor = textColor;
             if (word.mode === "header") {
@@ -2846,6 +2934,8 @@
               wordTextColor = accent;
             } else if (word.mode === "quote") {
               wordTextColor = accent; // Use accent color for quotes
+            } else if (word.mode === "label" || word.wasLabelWithAt) {
+              wordTextColor = "#ffffff"; // Label text is always white
             }
             
             if (idx > 0 && !word.noSpaceBefore) {
@@ -2874,13 +2964,13 @@
             let labelPillHeight = wordFontSize;
             
             // Draw label pill background before text
-            if (word.mode === "label") {
+            if (word.mode === "label" || word.wasLabelWithAt) {
               const labelPaddingX = Math.max(8, Math.round(wordFontSize * 0.4));
               const labelPaddingY = Math.max(6, Math.round(wordFontSize * 0.25)); // Equal vertical padding
               const wordWidth = ctx.measureText(word.text).width;
               labelPillHeight = wordFontSize + labelPaddingY * 2;
               labelPillY = y - labelPaddingY - (wordFontSize * 0.1); // Center vertically around text
-              
+
               ctx.fillStyle = accent;
               ctx.beginPath();
               ctx.roundRect(
@@ -2900,15 +2990,15 @@
             
             // Draw text (centered vertically for label)
             let textY = y;
-            if (word.mode === "label") {
+            if (word.mode === "label" || word.wasLabelWithAt) {
               // Center text vertically within the pill using middle baseline
               ctx.textBaseline = "middle";
               textY = labelPillY + (labelPillHeight / 2);
             }
             ctx.fillText(word.text, x, textY);
-            
+
             // Reset baseline for next words
-            if (word.mode === "label") {
+            if (word.mode === "label" || word.wasLabelWithAt) {
               ctx.textBaseline = "top";
             }
             
@@ -3570,6 +3660,7 @@
       });
 
       function buildPrompt() {
+        const topic = topicInput.value.trim() || "ВАША ТЕМА ЗДЕСЬ - например: \"Как начать бизнес с нуля\", \"5 ошибок в питании\", \"Секреты продуктивности\"";
         return `Ты — креативный директор вирусного контента для Instagram, специализирующийся на каруселях на русском языке.
 
 ЦЕЛЬ:
@@ -3646,7 +3737,7 @@
 - Без пояснений перед или после JSON
 - Только поле "title" и массив "slides"
 
-Тема: [ВАША ТЕМА ЗДЕСЬ - например: "Как начать бизнес с нуля", "5 ошибок в питании", "Секреты продуктивности"]";
+Тема: ${topic}`;
       }
 
       function applyStateFromInputs() {
@@ -3661,7 +3752,8 @@
         state.underlay = activeUnderlay;
         const ctaTarget = ctaInput.value.trim();
         const ctaText = ctaTextInput.value.trim();
-        state.cta = ctaTarget ? `${ctaText ? ctaText + " " : ""}${ctaTarget}`.trim() : "";
+        const ctaPrefix = ctaText ? ctaText + " " : "";
+        state.cta = ctaTarget ? (ctaPrefix + ctaTarget).trim() : "";
       }
 
       function openImageModal(index) {
@@ -3678,7 +3770,9 @@
       }
 
       fromJsonBtn.addEventListener("click", () => {
+        console.log("fromJsonBtn clicked");
         const raw = sanitizeJsonInput(jsonInput.value);
+        console.log("Raw input:", raw ? raw.substring(0, 100) + "..." : "empty");
         if (!raw) {
           alert("Вставьте JSON или текст для генерации карусели.");
           return;
@@ -3747,9 +3841,10 @@
             if (match) {
               const pos = parseInt(match[1]);
               const context = raw.substring(Math.max(0, pos - 30), Math.min(raw.length, pos + 30));
-              errorMsg += `\n\nОшибка около:\n...${context}...\n${' '.repeat(33)}^`;
+              const spaces = ' '.repeat(33);
+              errorMsg += `\n\nОшибка около:\n...${context}...\n${spaces}^`;
             } else {
-              errorMsg += `\n\n${jsonError.message}`;
+              errorMsg += "\\n\\n" + jsonError.message;
             }
           }
           errorMsg += "\n\nПодсказка: вставьте JSON с полями 'title' и 'slides', или просто текст для автоматической конвертации.";
@@ -4035,9 +4130,62 @@
 
       copyPromptBtn.addEventListener("click", async () => {
         const prompt = buildPrompt();
-        await navigator.clipboard.writeText(prompt);
-        copyPromptBtn.textContent = "✅ Промпт скопирован! Вставь его в ИИ";
-        setTimeout(() => (copyPromptBtn.textContent = "📋 Скопировать промпт"), 2500);
+        let copied = false;
+
+        try {
+          // Check if we're in a secure context
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(prompt);
+            copied = true;
+            console.log("Copied using navigator.clipboard");
+          } else {
+            console.log("Not in secure context, using fallback");
+          }
+        } catch (e) {
+          console.error("Clipboard API failed:", e);
+          console.log("Trying fallback method");
+        }
+
+        if (!copied) {
+          try {
+            // Fallback method using textarea
+            const textarea = document.createElement("textarea");
+            textarea.value = prompt;
+            // Move textarea out of focusable elements
+            textarea.setAttribute("readonly", "");
+            textarea.style.cssText = "position: absolute; left: -9999px; top: -9999px; opacity: 0; width: 0; height: 0;";
+            document.body.appendChild(textarea);
+            
+            // Select and copy text
+            textarea.focus();
+            textarea.select();
+            
+            // For older browsers compatibility
+            const successful = document.execCommand("copy");
+            document.body.removeChild(textarea);
+            
+            if (successful) {
+              copied = true;
+              console.log("Copied using execCommand fallback");
+            } else {
+              console.error("execCommand returned false");
+            }
+          } catch (e) {
+            console.error("Fallback copy failed:", e);
+          }
+        }
+
+        if (copied) {
+          copyPromptBtn.textContent = "✅ Промпт скопирован! Вставь его в ИИ";
+          showToast('Промпт скопирован в буфер обмена!', 'success');
+        } else {
+          copyPromptBtn.textContent = "❌ Не удалось скопировать";
+          showToast('Не удалось скопировать промпт', 'error');
+        }
+
+        setTimeout(() => {
+          copyPromptBtn.textContent = "📋 Скопировать промпт";
+        }, 2500);
       });
 
       downloadBtn.addEventListener("click", () => {
@@ -4085,4 +4233,4 @@
     </script>
   </body>
 </html>
-// Deployed: понедельник,  9 февраля 2026 г. 22:07:57 (MSK)
+// Deployed: четверг, 12 февраля 2026 г. 18:30:00 (MSK)
