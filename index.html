@@ -2731,8 +2731,13 @@
           // Draw quote line indicator on the left if line has quote
           if (hasQuote) {
             const quoteBarX = marginX - linePaddingX * 0.8;
-            ctx.fillStyle = accent + "60"; // 37% opacity
-            ctx.fillRect(quoteBarX, y - linePaddingY * 0.5, 3, lineHeight + linePaddingY);
+            ctx.fillStyle = accent; // Full opacity for brighter line
+            ctx.fillRect(quoteBarX, y - linePaddingY * 0.5, 5, lineHeight + linePaddingY); // Thicker line (5px)
+          }
+          
+          // Add left margin offset for quote text
+          if (hasQuote) {
+            x += linePaddingX * 0.6; // Indent quote text from the line
           }
           
           line.words.forEach((word, idx) => {
@@ -2776,19 +2781,26 @@
               ctx.fill();
             }
             
+            // Calculate label dimensions for later use
+            let labelPillY = y;
+            let labelPillHeight = wordFontSize;
+            
             // Draw label pill background before text
             if (word.mode === "label") {
               const labelPaddingX = Math.max(8, Math.round(wordFontSize * 0.4));
-              const labelPaddingY = Math.max(4, Math.round(wordFontSize * 0.2));
+              const labelPaddingY = Math.max(6, Math.round(wordFontSize * 0.25)); // Equal vertical padding
               const wordWidth = ctx.measureText(word.text).width;
+              labelPillHeight = wordFontSize + labelPaddingY * 2;
+              labelPillY = y - labelPaddingY - (wordFontSize * 0.1); // Center vertically around text
+              
               ctx.fillStyle = accent;
               ctx.beginPath();
               ctx.roundRect(
                 x - labelPaddingX,
-                y - labelPaddingY * 0.5,
+                labelPillY,
                 wordWidth + labelPaddingX * 2,
-                wordFontSize + labelPaddingY * 2,
-                wordFontSize // pill shape
+                labelPillHeight,
+                labelPillHeight / 2 // pill shape based on height
               );
               ctx.fill();
               // Label text is always white or dark depending on accent brightness
@@ -2798,13 +2810,18 @@
             // Set text color
             ctx.fillStyle = wordTextColor;
             
-            // Draw text
-            ctx.fillText(word.text, x, y);
+            // Draw text (centered vertically for label)
+            let textY = y;
+            if (word.mode === "label") {
+              // Center text vertically within the pill
+              textY = labelPillY + (labelPillHeight / 2) + (wordFontSize * 0.35);
+            }
+            ctx.fillText(word.text, x, textY);
             
             // Draw underline after text
             if (word.mode === "underline") {
               const wordWidth = ctx.measureText(word.text).width;
-              const underlineY = y + wordFontSize * 0.85;
+              const underlineY = textY + wordFontSize * 0.85;
               ctx.strokeStyle = wordTextColor;
               ctx.lineWidth = Math.max(2, Math.round(wordFontSize * 0.08));
               ctx.beginPath();
