@@ -1828,7 +1828,93 @@
         }
 
         flush();
+        
+        // Process list items - add line breaks between list items
+        segments = processListItems(segments);
+        
         return segments;
+      }
+
+      function processListItems(segments) {
+        const processedSegments = [];
+        
+        segments.forEach((seg) => {
+          if (seg.isBreak || !seg.text) {
+            processedSegments.push(seg);
+            return;
+          }
+          
+          // Pattern to match list items: •, -, *, 1., 2., etc. at the start of text or after whitespace
+          const listPattern = /(^|\s)([•\-\*]|\d+\.)\s+/g;
+          
+          // Check if text contains list markers
+          if (!listPattern.test(seg.text)) {
+            processedSegments.push(seg);
+            return;
+          }
+          
+          // Split by list markers but keep the markers with their content
+          listPattern.lastIndex = 0; // Reset regex
+          let lastIndex = 0;
+          let match;
+          let isFirstItem = true;
+          
+          while ((match = listPattern.exec(seg.text)) !== null) {
+            const matchStart = match.index;
+            const matchEnd = matchStart + match[0].length;
+            
+            // Get text before this list item (if any and not just whitespace)
+            if (matchStart > lastIndex && seg.text.slice(lastIndex, matchStart).trim()) {
+              processedSegments.push({
+                text: seg.text.slice(lastIndex, matchStart),
+                mode: seg.mode
+              });
+            }
+            
+            // Find the start of the next list item or end of text
+            const currentLastIndex = listPattern.lastIndex;
+            const nextMatch = listPattern.exec(seg.text);
+            listPattern.lastIndex = currentLastIndex; // Reset for next iteration
+            
+            let itemEnd;
+            if (nextMatch) {
+              itemEnd = nextMatch.index;
+            } else {
+              itemEnd = seg.text.length;
+            }
+            
+            // Extract list item content (including marker)
+            const listItemContent = seg.text.slice(matchStart, itemEnd).trim();
+            
+            // Add line break before list item (except for the first one if there's no preceding text)
+            if (!isFirstItem || (matchStart > 0 && seg.text.slice(0, matchStart).trim())) {
+              processedSegments.push({
+                text: "__LINEBREAK__",
+                mode: "normal",
+                isBreak: true
+              });
+            }
+            
+            // Add the list item content
+            processedSegments.push({
+              text: listItemContent,
+              mode: seg.mode
+            });
+            
+            isFirstItem = false;
+            lastIndex = itemEnd;
+          }
+          
+          // Add any remaining text after the last list item
+          if (lastIndex < seg.text.length && seg.text.slice(lastIndex).trim()) {
+            processedSegments.push({
+              text: seg.text.slice(lastIndex),
+              mode: seg.mode
+            });
+          }
+        });
+        
+        return processedSegments;
       }
 
       function segmentsToWords(segments) {
