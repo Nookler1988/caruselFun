@@ -1848,9 +1848,9 @@
       function pickAccent(text, slideIndex = 0) {
         const pool = state.palette.accents;
         if (!pool || !pool.length) return "#2f80ed";
-        // Use slide index for consistent color selection instead of text hash
-        // This ensures the same color is used for the same slide position
-        return pool[slideIndex % pool.length];
+        // Use first accent color from palette for all slides
+        // This ensures consistent color across all slides in the carousel
+        return pool[0];
       }
 
       function drawCoverImage(ctx, img, w, h) {
