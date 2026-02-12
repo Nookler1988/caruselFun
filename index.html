@@ -2815,15 +2815,21 @@
             // Draw text (centered vertically for label)
             let textY = y;
             if (word.mode === "label") {
-              // Center text vertically within the pill
-              textY = labelPillY + (labelPillHeight / 2) + (wordFontSize * 0.35);
+              // Center text vertically within the pill using middle baseline
+              ctx.textBaseline = "middle";
+              textY = labelPillY + (labelPillHeight / 2);
             }
             ctx.fillText(word.text, x, textY);
+            
+            // Reset baseline for next words
+            if (word.mode === "label") {
+              ctx.textBaseline = "top";
+            }
             
             // Draw underline after text
             if (word.mode === "underline") {
               const wordWidth = ctx.measureText(word.text).width;
-              const underlineY = textY + wordFontSize * 0.85;
+              const underlineY = textY + wordFontSize * 0.5; // Consistent offset from baseline
               ctx.strokeStyle = wordTextColor;
               ctx.lineWidth = Math.max(2, Math.round(wordFontSize * 0.08));
               ctx.beginPath();
