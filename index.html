@@ -1845,14 +1845,12 @@
         return lines;
       }
 
-      function pickAccent(text) {
+      function pickAccent(text, slideIndex = 0) {
         const pool = state.palette.accents;
         if (!pool || !pool.length) return "#2f80ed";
-        let hash = 0;
-        for (let i = 0; i < text.length; i++) {
-          hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
-        }
-        return pool[hash % pool.length];
+        // Use slide index for consistent color selection instead of text hash
+        // This ensures the same color is used for the same slide position
+        return pool[slideIndex % pool.length];
       }
 
       function drawCoverImage(ctx, img, w, h) {
@@ -1921,7 +1919,7 @@
         const ctx = canvas.getContext("2d");
         
         // Declare accent at the beginning for use throughout the function
-        const accent = pickAccent(state.title || text);
+        const accent = pickAccent(state.title || text, index);
 
         // Background
         if (slideImage && slideImage.mode === "full") {
