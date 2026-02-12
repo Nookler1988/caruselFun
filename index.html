@@ -1709,7 +1709,7 @@
       function parseStyledSegments(text) {
         const segments = [];
         let buf = "";
-        let mode = "normal"; // normal | accent | bold | header
+        let mode = "normal"; // normal | accent | bold | header | underline | highlight | quote | label
         let i = 0;
 
         const flush = () => {
@@ -1765,6 +1765,62 @@
             continue;
           }
 
+          if (rest.startsWith("<underline>")) {
+            flush();
+            mode = "underline";
+            i += 11;
+            continue;
+          }
+
+          if (rest.startsWith("</underline>")) {
+            flush();
+            mode = "normal";
+            i += 12;
+            continue;
+          }
+
+          if (rest.startsWith("<highlight>")) {
+            flush();
+            mode = "highlight";
+            i += 11;
+            continue;
+          }
+
+          if (rest.startsWith("</highlight>")) {
+            flush();
+            mode = "normal";
+            i += 12;
+            continue;
+          }
+
+          if (rest.startsWith("<quote>")) {
+            flush();
+            mode = "quote";
+            i += 7;
+            continue;
+          }
+
+          if (rest.startsWith("</quote>")) {
+            flush();
+            mode = "normal";
+            i += 8;
+            continue;
+          }
+
+          if (rest.startsWith("<label>")) {
+            flush();
+            mode = "label";
+            i += 7;
+            continue;
+          }
+
+          if (rest.startsWith("</label>")) {
+            flush();
+            mode = "normal";
+            i += 8;
+            continue;
+          }
+
           buf += ch;
           i += 1;
         }
@@ -1803,6 +1859,10 @@
         if (mode === "bold") return 800;
         if (mode === "accent") return 700;
         if (mode === "header") return 800;
+        if (mode === "underline") return isTitle ? 800 : 600;
+        if (mode === "highlight") return isTitle ? 800 : 600;
+        if (mode === "quote") return isTitle ? 700 : 500; // Lighter weight for quote
+        if (mode === "label") return 700;
         return isTitle ? 800 : 600;
       }
 
@@ -2665,25 +2725,94 @@
           let x = marginX;
           // Check if this line has header
           const hasHeader = line.words.some(w => w.mode === "header");
+          // Check if this line has quote mode
+          const hasQuote = line.words.some(w => w.mode === "quote");
+          
+          // Draw quote line indicator on the left if line has quote
+          if (hasQuote) {
+            const quoteBarX = marginX - linePaddingX * 0.8;
+            ctx.fillStyle = accent + "60"; // 37% opacity
+            ctx.fillRect(quoteBarX, y - linePaddingY * 0.5, 3, lineHeight + linePaddingY);
+          }
           
           line.words.forEach((word, idx) => {
-            // Header text is 1.3x larger
-            const wordFontSize = word.mode === "header" ? Math.round(fontSize * 1.3) : fontSize;
+            // Header text is 1.3x larger, label is 0.9x smaller
+            let wordFontSize = fontSize;
+            if (word.mode === "header") {
+              wordFontSize = Math.round(fontSize * 1.3);
+            } else if (word.mode === "label") {
+              wordFontSize = Math.round(fontSize * 0.9);
+            }
             ctx.font = `${word.weight} ${wordFontSize}px "${state.fontFamily}", sans-serif`;
             
-            // Header uses dark background color for contrast
+            // Calculate text color
+            let wordTextColor = textColor;
             if (word.mode === "header") {
-              ctx.fillStyle = state.palette.bgDark;
+              wordTextColor = state.palette.bgDark;
             } else if (word.mode === "accent") {
-              ctx.fillStyle = accent;
-            } else {
-              ctx.fillStyle = textColor;
+              wordTextColor = accent;
+            } else if (word.mode === "quote") {
+              wordTextColor = accent; // Use accent color for quotes
             }
             
             if (idx > 0 && !word.noSpaceBefore) {
               x += spaceWidth;
             }
+            
+            // Draw highlight background before text
+            if (word.mode === "highlight") {
+              const highlightPaddingX = Math.max(4, Math.round(wordFontSize * 0.15));
+              const highlightPaddingY = Math.max(2, Math.round(wordFontSize * 0.1));
+              const wordWidth = ctx.measureText(word.text).width;
+              ctx.fillStyle = accent + "30"; // 19% opacity for highlight
+              ctx.beginPath();
+              ctx.roundRect(
+                x - highlightPaddingX,
+                y - highlightPaddingY,
+                wordWidth + highlightPaddingX * 2,
+                wordFontSize + highlightPaddingY * 2,
+                4
+              );
+              ctx.fill();
+            }
+            
+            // Draw label pill background before text
+            if (word.mode === "label") {
+              const labelPaddingX = Math.max(8, Math.round(wordFontSize * 0.4));
+              const labelPaddingY = Math.max(4, Math.round(wordFontSize * 0.2));
+              const wordWidth = ctx.measureText(word.text).width;
+              ctx.fillStyle = accent;
+              ctx.beginPath();
+              ctx.roundRect(
+                x - labelPaddingX,
+                y - labelPaddingY * 0.5,
+                wordWidth + labelPaddingX * 2,
+                wordFontSize + labelPaddingY * 2,
+                wordFontSize // pill shape
+              );
+              ctx.fill();
+              // Label text is always white or dark depending on accent brightness
+              wordTextColor = "#ffffff";
+            }
+            
+            // Set text color
+            ctx.fillStyle = wordTextColor;
+            
+            // Draw text
             ctx.fillText(word.text, x, y);
+            
+            // Draw underline after text
+            if (word.mode === "underline") {
+              const wordWidth = ctx.measureText(word.text).width;
+              const underlineY = y + wordFontSize * 0.85;
+              ctx.strokeStyle = wordTextColor;
+              ctx.lineWidth = Math.max(2, Math.round(wordFontSize * 0.08));
+              ctx.beginPath();
+              ctx.moveTo(x, underlineY);
+              ctx.lineTo(x + wordWidth, underlineY);
+              ctx.stroke();
+            }
+            
             x += word.width;
           });
           y += lineHeight + lineGap;
@@ -3344,9 +3473,13 @@
 ТВОЯ КРЕАТИВНАЯ СВОБОДА — ТЕКСТ И ОФОРМЛЕНИЕ:
 
 Инструменты форматирования:
-- <header>текст</header> — заголовок слайда
+- <header>текст</header> — заголовок слайда (крупный, с переносом строки)
 - <bold>текст</bold> — жирный акцент
 - <accent>текст</accent> — цветовой акцент
+- <underline>текст</underline> — подчеркнутый текст (для акцента на важном)
+- <highlight>текст</highlight> — выделение фоном (как маркер, для ключевых фраз)
+- <quote>текст</quote> — цитата (с полоской слева, для мыслей/высказываний)
+- <label>текст</label> — бирка/тег (скругленная плашка с фоном, для категорий)
 - Эмодзи — используй минимально (1-2 на слайд максимум, только где усиливают смысл)
 - Нумерованные списки (1., 2., 3.) — для последовательностей
 - Маркированные списки (•, ✓, ✗) — для перечислений
@@ -3376,6 +3509,10 @@
 - "<header>Почему 90% терпят крах</header>\n\n1. ❌ Делают всё сразу\n2. ❌ Нет системы\n3. ❌ Сдаются на старте"
 - "<accent>3 правила</accent> которые изменят всё:\n\n• Работайте 2 часа в день\n• Делегируйте рутину\n• Фокус на результат"
 - "Я потратил 5 лет на ошибки, чтобы вам не пришлось 💡"
+- "<highlight>Главный секрет</highlight> успешных людей"
+- "<underline>Никогда не делайте</underline> это в понедельник"
+- "<quote>Лучшее время начать было 5 лет назад. Второе лучшее время — сейчас</quote>"
+- "<label>ВАЖНО</label> Прочтите до конца!"
 
 ЧЕГО ИЗБЕГАТЬ:
 - Воды и общих фраз
