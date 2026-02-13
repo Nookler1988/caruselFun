@@ -1026,6 +1026,13 @@
               <option value="Montserrat">Montserrat</option>
             </select>
           </label>
+          <label class="meta">
+            Плотность:
+            <select id="typographySelect">
+              <option value="balanced" selected>Сбалансированный</option>
+              <option value="dense">Плотный</option>
+            </select>
+          </label>
         </div>
         <div class="row">
           <div class="field" style="min-width: 100%">
@@ -1343,6 +1350,7 @@
       const modeSelect = document.getElementById("modeSelect");
       const sizeSelect = document.getElementById("sizeSelect");
       const fontSelect = document.getElementById("fontSelect");
+      const typographySelect = document.getElementById("typographySelect");
       const underlayPicker = document.getElementById("underlayPicker");
       const layoutPicker = document.getElementById("layoutPicker");
       const colorPicker = document.getElementById("colorPicker");
@@ -1377,6 +1385,7 @@
         pendingImageMode: null,
         titlePosition: "center",
         textUnderlay: "line",
+        typographyPreset: "balanced",
       };
 
       function isMobileDevice() {
@@ -1721,6 +1730,45 @@
         search: "search",
       };
 
+      const typographyPresets = {
+        balanced: {
+          titleStartScale: 0.056,
+          titleMinScale: 0.034,
+          titleMinPx: 30,
+          bodyStartScale: 0.046,
+          bodyStartScaleTight: 0.041,
+          bodyMinScale: 0.029,
+          bodyMinScaleTight: 0.026,
+          bodyMinPx: 26,
+          lineHeightMultTitle: 1.22,
+          lineHeightMultBody: 1.2,
+          lineGapMult: 0.22,
+          fitStepPx: 1,
+        },
+        dense: {
+          titleStartScale: 0.053,
+          titleMinScale: 0.032,
+          titleMinPx: 28,
+          bodyStartScale: 0.043,
+          bodyStartScaleTight: 0.038,
+          bodyMinScale: 0.027,
+          bodyMinScaleTight: 0.024,
+          bodyMinPx: 24,
+          lineHeightMultTitle: 1.18,
+          lineHeightMultBody: 1.16,
+          lineGapMult: 0.18,
+          fitStepPx: 1,
+        },
+      };
+
+      function getTypographyPreset() {
+        return typographyPresets[state.typographyPreset] || typographyPresets.balanced;
+      }
+
+      function scaledFontSize(shortSide, scale, minPx) {
+        return Math.max(minPx, Math.round(shortSide * scale));
+      }
+
       function parseSize(value) {
         const [w, h] = value.split("x").map(Number);
         return { w, h };
@@ -1735,6 +1783,13 @@
         const flush = () => {
           if (buf) segments.push({ text: buf, mode });
           buf = "";
+        };
+
+        const pushLineBreak = () => {
+          const last = segments[segments.length - 1];
+          if (!last || !last.isBreak) {
+            segments.push({ text: "__LINEBREAK__", mode: "normal", isBreak: true });
+          }
         };
 
         while (i < text.length) {
@@ -1781,7 +1836,7 @@
             mode = "normal";
             i += 9;
             // Add line break after header (new line without empty spacing)
-            segments.push({ text: "__LINEBREAK__", mode: "normal", isBreak: true });
+            pushLineBreak();
             continue;
           }
 
@@ -1815,6 +1870,8 @@
 
           if (rest.startsWith("<quote>")) {
             flush();
+            // Add line break before quote starts (new line)
+            pushLineBreak();
             mode = "quote";
             i += 7;
             continue;
@@ -1824,6 +1881,8 @@
             flush();
             mode = "normal";
             i += 8;
+            // Keep text outside quote on a new line (Telegram-like behavior)
+            pushLineBreak();
             continue;
           }
 
@@ -1839,7 +1898,7 @@
             mode = "normal";
             i += 8;
             // Add line break after label (new line without empty spacing)
-            segments.push({ text: "__LINEBREAK__", mode: "normal", isBreak: true });
+            pushLineBreak();
             continue;
           }
 
@@ -1986,8 +2045,8 @@
               noSpaceBefore: true,
             });
           } else {
-            // Don't split text into words if it was a label containing @ symbol
-            if (seg.wasLabelWithAt) {
+            // Don't split text into words for labels or if it contains @ symbol
+            if (seg.wasLabelWithAt || seg.mode === "label") {
               // Treat the whole text as a single word
               words.push({
                 text: seg.text,
@@ -2150,6 +2209,8 @@
 
       function drawSlide(canvas, text, index, total, isTitle, slideImage, isCta = false) {
         const { w, h } = state.size;
+        const shortSide = Math.min(w, h);
+        const typography = getTypographyPreset();
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext("2d");
@@ -2673,10 +2734,10 @@
           let maxHeight = h - marginY * 2 - footerSafe;
 
           const needsTightText = false; // CTA doesn't have image layout constraints
-          const bodyScale = needsTightText ? 0.043 : 0.05;
-          const bodyMin = needsTightText ? 0.03 : 0.034;
-          let fontSize = Math.round(Math.min(w, h) * bodyScale); // Use body font size, not title size
-          const minFont = Math.round(Math.min(w, h) * bodyMin);
+          const bodyScale = needsTightText ? typography.bodyStartScaleTight : typography.bodyStartScale;
+          const bodyMin = needsTightText ? typography.bodyMinScaleTight : typography.bodyMinScale;
+          let fontSize = scaledFontSize(shortSide, bodyScale, typography.bodyMinPx); // Use body font size, not title size
+          const minFont = scaledFontSize(shortSide, bodyMin, typography.bodyMinPx);
           let lines = [];
 
           while (fontSize >= minFont) {
@@ -2684,18 +2745,18 @@
             const segments = parseStyledSegments(text);
             const words = segmentsToWords(segments);
             lines = buildLinesFromWords(ctx, words, maxWidth, fontSize, state.fontFamily, false); // not a title
-            const lineHeight = fontSize * 1.25;
+            const lineHeight = fontSize * typography.lineHeightMultBody;
             if (lines.length * lineHeight <= maxHeight) break;
-            fontSize -= 2;
+            fontSize -= typography.fitStepPx;
           }
 
           ctx.fillStyle = state.palette.text;
           ctx.textBaseline = "top";
           ctx.font = `600 ${fontSize}px "${state.fontFamily}", sans-serif`;
-          const lineHeight = fontSize * 1.25;
+          const lineHeight = fontSize * typography.lineHeightMultBody;
           const linePaddingX = Math.max(14, Math.round(fontSize * 0.35));
           const linePaddingY = Math.max(10, Math.round(fontSize * 0.22));
-          const lineGap = Math.round(fontSize * 0.28);
+          const lineGap = Math.round(fontSize * typography.lineGapMult);
 
           const spaceWidth = ctx.measureText(" ").width;
           let y = marginY + (maxHeight - lines.length * (lineHeight + lineGap)) / 2;
@@ -2802,26 +2863,30 @@
         const needsTightText =
           slideImage &&
           (slideImage.mode === "left" || slideImage.mode === "right" || slideImage.mode === "top" || slideImage.mode === "bottom");
-        const bodyScale = needsTightText ? 0.043 : 0.05;
-        const bodyMin = needsTightText ? 0.03 : 0.034;
-        let fontSize = Math.round(Math.min(w, h) * (isTitle ? 0.06 : bodyScale));
-        const minFont = Math.round(Math.min(w, h) * (isTitle ? 0.038 : bodyMin));
+        const bodyScale = needsTightText ? typography.bodyStartScaleTight : typography.bodyStartScale;
+        const bodyMin = needsTightText ? typography.bodyMinScaleTight : typography.bodyMinScale;
+        const startScale = isTitle ? typography.titleStartScale : bodyScale;
+        const minScale = isTitle ? typography.titleMinScale : bodyMin;
+        const minPx = isTitle ? typography.titleMinPx : typography.bodyMinPx;
+        let fontSize = scaledFontSize(shortSide, startScale, minPx);
+        const minFont = scaledFontSize(shortSide, minScale, minPx);
         let lines = [];
+        const lineHeightMult = isTitle ? typography.lineHeightMultTitle : typography.lineHeightMultBody;
 
         while (fontSize >= minFont) {
           ctx.font = `${isTitle ? 800 : 600} ${fontSize}px "${state.fontFamily}", sans-serif`;
           const segments = parseStyledSegments(text);
           const words = segmentsToWords(segments);
           lines = buildLinesFromWords(ctx, words, maxWidth, fontSize, state.fontFamily, isTitle);
-          const lineHeight = fontSize * 1.25;
+          const lineHeight = fontSize * lineHeightMult;
           if (lines.length * lineHeight <= maxHeight) break;
-          fontSize -= 2;
+          fontSize -= typography.fitStepPx;
         }
 
         ctx.fillStyle = state.palette.text;
         ctx.textBaseline = "top";
         ctx.font = `${isTitle ? 800 : 600} ${fontSize}px "${state.fontFamily}", sans-serif`;
-        const lineHeight = fontSize * 1.25;
+        const lineHeight = fontSize * lineHeightMult;
         const blockHeight = lines.length * lineHeight;
         
         // Calculate Y position based on title position setting (for title slide only)
@@ -2845,7 +2910,7 @@
 
         const linePaddingX = Math.max(14, Math.round(fontSize * 0.35));
         const linePaddingY = Math.max(10, Math.round(fontSize * 0.22));
-        const lineGap = Math.round(fontSize * 0.28);
+        const lineGap = Math.round(fontSize * typography.lineGapMult);
 
         const spaceWidth = ctx.measureText(" ").width;
         
@@ -2884,6 +2949,35 @@
           ctx.fill();
         }
         
+        // Find quote block boundaries and draw quote decorations
+        let quoteStartY = null;
+        let quoteEndY = null;
+        let hasQuoteBlock = false;
+        const quoteBarWidth = Math.max(4, Math.round(fontSize * 0.1));
+        const quoteTextOffsetX = linePaddingX * 0.6;
+        
+        lines.forEach((line, idx) => {
+          const lineHasQuote = line.words.some(w => w.mode === "quote");
+          if (lineHasQuote) {
+            hasQuoteBlock = true;
+            if (quoteStartY === null) {
+              quoteStartY = y + (idx * (lineHeight + lineGap)) - linePaddingY * 0.5;
+            }
+            quoteEndY = y + (idx * (lineHeight + lineGap)) + lineHeight + linePaddingY * 0.5;
+          }
+        });
+        
+        // Draw minimal quote style (single accent bar)
+        if (hasQuoteBlock && quoteStartY !== null && quoteEndY !== null) {
+          const quoteBarX = marginX - linePaddingX * 0.8;
+          const quoteBarY = quoteStartY;
+          const quoteBarH = quoteEndY - quoteStartY;
+          ctx.fillStyle = accent;
+          ctx.beginPath();
+          ctx.roundRect(quoteBarX, quoteBarY, quoteBarWidth, quoteBarH, quoteBarWidth / 2);
+          ctx.fill();
+        }
+        
         lines.forEach((line) => {
           // Draw line underlay (individual rectangle for each line)
           if (needsUnderlay && state.textUnderlay === "line") {
@@ -2904,20 +2998,15 @@
           // Check if this line has quote mode
           const hasQuote = line.words.some(w => w.mode === "quote");
           
-          // Draw quote line indicator on the left if line has quote
+          // Add compact left offset for quote text near the accent bar
           if (hasQuote) {
-            const quoteBarX = marginX - linePaddingX * 0.8;
-            ctx.fillStyle = accent; // Full opacity for brighter line
-            ctx.fillRect(quoteBarX, y - linePaddingY * 0.5, 5, lineHeight + linePaddingY); // Thicker line (5px)
+            x += quoteTextOffsetX;
           }
           
-          // Add left margin offset for quote text
-          if (hasQuote) {
-            x += linePaddingX * 0.6; // Indent quote text from the line
-          }
-          
+          // Pre-calculate positions and find highlight groups
+          const wordPositions = [];
+          let currentX = x;
           line.words.forEach((word, idx) => {
-            // Header text is 1.3x larger, label is 0.9x smaller
             let wordFontSize = fontSize;
             if (word.mode === "header") {
               wordFontSize = Math.round(fontSize * 1.3);
@@ -2925,9 +3014,80 @@
               wordFontSize = Math.round(fontSize * 0.9);
             }
             ctx.font = `${word.weight} ${wordFontSize}px "${state.fontFamily}", sans-serif`;
+            
+            if (idx > 0 && !word.noSpaceBefore) {
+              currentX += spaceWidth;
+            }
+            
+            wordPositions.push({
+              x: currentX,
+              fontSize: wordFontSize,
+              word: word,
+              idx: idx
+            });
+            
+            currentX += word.width;
+          });
+          
+          // Find and draw highlight groups (consecutive highlight words)
+          const highlightGroups = [];
+          let currentGroup = null;
+          
+          wordPositions.forEach((pos) => {
+            if (pos.word.mode === "highlight") {
+              if (!currentGroup) {
+                currentGroup = {
+                  startX: pos.x,
+                  endX: pos.x + pos.word.width,
+                  fontSize: pos.fontSize
+                };
+              } else {
+                currentGroup.endX = pos.x + pos.word.width;
+              }
+            } else {
+              if (currentGroup) {
+                highlightGroups.push(currentGroup);
+                currentGroup = null;
+              }
+            }
+          });
+          
+          if (currentGroup) {
+            highlightGroups.push(currentGroup);
+          }
+          
+          // Draw highlight backgrounds for groups
+          highlightGroups.forEach((group) => {
+            const highlightPaddingX = Math.max(4, Math.round(group.fontSize * 0.15));
+            const highlightPaddingY = Math.max(2, Math.round(group.fontSize * 0.1));
+            // Check theme for highlight styling
+            const isBlackTheme = state.palette.bgLight === "#0f0f0f";
+            const isWhiteTheme = state.palette.bgLight === "#ffffff";
+            // For black theme: white highlight, for white theme: black highlight, otherwise: accent color
+            ctx.fillStyle = isBlackTheme ? "#ffffff" : (isWhiteTheme ? "#000000" : accent + "30");
+            ctx.beginPath();
+            ctx.roundRect(
+              group.startX - highlightPaddingX,
+              y - highlightPaddingY,
+              group.endX - group.startX + highlightPaddingX * 2,
+              group.fontSize + highlightPaddingY * 2,
+              4
+            );
+            ctx.fill();
+          });
+          
+          // Use pre-calculated positions from wordPositions
+          wordPositions.forEach((pos) => {
+            const word = pos.word;
+            const wordFontSize = pos.fontSize;
+            const x = pos.x;
+            
+            ctx.font = `${word.weight} ${wordFontSize}px "${state.fontFamily}", sans-serif`;
 
             // Calculate text color
             let wordTextColor = textColor;
+            const isBlackTheme = state.palette.bgLight === "#0f0f0f";
+            const isWhiteTheme = state.palette.bgLight === "#ffffff";
             if (word.mode === "header") {
               wordTextColor = state.palette.bgDark;
             } else if (word.mode === "accent") {
@@ -2936,40 +3096,22 @@
               wordTextColor = accent; // Use accent color for quotes
             } else if (word.mode === "label" || word.wasLabelWithAt) {
               wordTextColor = "#ffffff"; // Label text is always white
-            }
-            
-            if (idx > 0 && !word.noSpaceBefore) {
-              x += spaceWidth;
-            }
-            
-            // Draw highlight background before text
-            if (word.mode === "highlight") {
-              const highlightPaddingX = Math.max(4, Math.round(wordFontSize * 0.15));
-              const highlightPaddingY = Math.max(2, Math.round(wordFontSize * 0.1));
-              const wordWidth = ctx.measureText(word.text).width;
-              ctx.fillStyle = accent + "30"; // 19% opacity for highlight
-              ctx.beginPath();
-              ctx.roundRect(
-                x - highlightPaddingX,
-                y - highlightPaddingY,
-                wordWidth + highlightPaddingX * 2,
-                wordFontSize + highlightPaddingY * 2,
-                4
-              );
-              ctx.fill();
+            } else if (word.mode === "highlight") {
+              // Black text for white highlight (black theme), white text for black highlight (white theme)
+              wordTextColor = isBlackTheme ? "#000000" : (isWhiteTheme ? "#ffffff" : textColor);
             }
             
             // Calculate label dimensions for later use
             let labelPillY = y;
             let labelPillHeight = wordFontSize;
             
-            // Draw label pill background before text
+            // Draw label pill background before text (label is already one continuous segment)
             if (word.mode === "label" || word.wasLabelWithAt) {
               const labelPaddingX = Math.max(8, Math.round(wordFontSize * 0.4));
-              const labelPaddingY = Math.max(6, Math.round(wordFontSize * 0.25)); // Equal vertical padding
+              const labelPaddingY = Math.max(6, Math.round(wordFontSize * 0.25));
               const wordWidth = ctx.measureText(word.text).width;
               labelPillHeight = wordFontSize + labelPaddingY * 2;
-              labelPillY = y - labelPaddingY - (wordFontSize * 0.1); // Center vertically around text
+              labelPillY = y - labelPaddingY;
 
               ctx.fillStyle = accent;
               ctx.beginPath();
@@ -2983,29 +3125,29 @@
               ctx.fill();
               // Label text is always white or dark depending on accent brightness
               wordTextColor = "#ffffff";
-            }
-            
-            // Set text color
-            ctx.fillStyle = wordTextColor;
-            
-            // Draw text (centered vertically for label)
-            let textY = y;
-            if (word.mode === "label" || word.wasLabelWithAt) {
-              // Center text vertically within the pill using middle baseline
+              
+              // Draw text centered vertically in pill
               ctx.textBaseline = "middle";
-              textY = labelPillY + (labelPillHeight / 2);
-            }
-            ctx.fillText(word.text, x, textY);
-
-            // Reset baseline for next words
-            if (word.mode === "label" || word.wasLabelWithAt) {
+              ctx.fillStyle = wordTextColor;
+              const textY = labelPillY + labelPillHeight / 2;
+              ctx.fillText(word.text, x, textY);
+              
+              // Reset baseline for next words
               ctx.textBaseline = "top";
+            } else {
+              // Regular word rendering (not label)
+              // Set text color
+              ctx.fillStyle = wordTextColor;
+              
+              // Draw text
+              ctx.fillText(word.text, x, y);
             }
             
             // Draw underline after text
             if (word.mode === "underline") {
               const wordWidth = ctx.measureText(word.text).width;
-              const underlineY = textY + wordFontSize * 0.5; // Consistent offset from baseline
+              const textBaseY = (word.mode === "label" || word.wasLabelWithAt) ? labelPillY + labelPillHeight / 2 : y;
+              const underlineY = textBaseY + wordFontSize * 0.5;
               ctx.strokeStyle = wordTextColor;
               ctx.lineWidth = Math.max(2, Math.round(wordFontSize * 0.08));
               ctx.beginPath();
@@ -3013,8 +3155,6 @@
               ctx.lineTo(x + wordWidth, underlineY);
               ctx.stroke();
             }
-            
-            x += word.width;
           });
           y += lineHeight + lineGap;
           // Add extra spacing after header line (30% of line height)
@@ -3660,90 +3800,71 @@
       });
 
       function buildPrompt() {
-        const topic = topicInput.value.trim() || "ВАША ТЕМА ЗДЕСЬ - например: \"Как начать бизнес с нуля\", \"5 ошибок в питании\", \"Секреты продуктивности\"";
-        return `Ты — креативный директор вирусного контента для Instagram, специализирующийся на каруселях на русском языке.
+        const topic = topicInput.value.trim() || "ВАША ТЕМА ЗДЕСЬ";
+        return `Ты — креативный директор вирусного контента для Instagram, специализирующийся на каруселях на русском языке. Твоя задача — создать максимально вирусную карусель, которая останавливает скролл и провоцирует сохранения, репосты или комментарии. Работай строго в рамках инструкции ниже.
 
-ЦЕЛЬ:
-Создать максимально вирусную карусель, которая останавливает скролл и провоцирует сохранения/репосты.
-
-ФОРМАТ ОТВЕТА (только JSON):
-{
-  "title": "строка до 60 символов",
-  "slides": ["строка 1", "строка 2", "..."]
-}
-
-ТВОЯ КРЕАТИВНАЯ СВОБОДА — ТЕКСТ И ОФОРМЛЕНИЕ:
-
-Инструменты форматирования (используйте ТОЛЬКО при необходимости для усиления текста):
-- <header>текст</header> — заголовок слайда (крупный, с переносом строки)
-- <bold>текст</bold> — жирный акцент (1-2 слова для усиления)
-- <accent>текст</accent> — цветовой акцент (ключевые выгоды, цифры)
-- <underline>текст</underline> — подчеркнутый текст (редко, для особого акцента)
-- <highlight>текст</highlight> — выделение фоном (1-2 ключевые фразы)
-- <quote>текст</quote> — цитата (с полоской слева, для мыслей)
-- <label>текст</label> — бирка/тег (используйте как отдельный пункт: текст label на одной строке, остальной текст на следующей)
-- Нумерованные списки (1., 2., 3.) — для последовательностей
-- Маркированные списки (-, *, →) — для перечислений
-
-ВАЖНО: Не используйте все выделения сразу! Выбирайте 1-2 элемента на слайд только там, где они действительно усиливают смысл. Чистый текст без выделений — тоже отличный вариант.
-
-ПРАВИЛА ИСПОЛЬЗОВАНИЯ ОФОРМЛЕНИЯ:
-- Используйте теги только при необходимости для усиления восприятия
-- Минимализм важнее: лучше меньше выделений, но качественнее
-- <label> — всегда отдельной строкой, например:
-  "<label>ВАЖНО</label>\nТекст после бирки на новой строке"
-- Списки используйте для структуры, не для каждого слайда
-- Чаще оставляйте текст без выделений — это тоже стиль
-
-СТРУКТУРА ВИРУСНОЙ КАРУСЕЛИ:
-- Cover (title): Цепляющий заголовок + интрига, провокация или обещание результата
-- Hook-слайд (слайд 1): Проблема, боль или любопытство — останови скролл!
-- Основа (слайды 2-5): 3-5 слайдов с конкретной ценностью, инсайтами, лайфхаками
-- CTA (последний слайд): Провокация на сохранение, репост или комментарий
+ФОРМАТ ОТВЕТА (СТРОГО, ТОЛЬКО JSON):
+{ "title": "строка до 60 символов", "slides": ["строка 1", "строка 2", "..."] }
+Любой текст вне этого формата недопустим. JSON должен быть валидным.
 
 ТРЕБОВАНИЯ К КОНТЕНТУ:
-- title: до 60 символов, цепляющий, с интригой или обещанием
-- slides: 4-7 слайдов, каждый до 220 символов
-- Стиль: вирусный, креативный, смелый, разговорный
-- Каждый слайд должен содержать ценность или инсайт
-- Провоцируй эмоции: удивление, любопытство, узнавание
+title — до 60 символов, цепляющий, с интригой или обещанием результата.
+slides — 4–7 слайдов, каждый до 220 символов.
+Стиль — вирусный, смелый, разговорный.
+Каждый слайд несёт конкретную ценность или инсайт.
+Используй эмоции: удивление, узнавание, любопытство.
+
+СТРУКТУРА КАРУСЕЛИ:
+Cover — сильный заголовок с интригой или провокацией.
+Слайд 1 — боль, конфликт или вопрос, который останавливает скролл.
+Слайды 2–5 — развитие мысли, конкретные инсайты, ошибки, правила или личный опыт с нарастанием напряжения.
+Последний слайд — один чёткий CTA (сохранение, комментарий или репост).
 
 ПРИНЦИПЫ ВИРУСНОСТИ:
-- Обещай конкретный результат («Как я заработал 100к за месяц»)
-- Используй интригу («Это запрещено говорить...»)
-- Провоцируй противоречие («Все делают не так»)
-- Делись личным опытом («Моя ошибка стоила мне...»)
-- Задавай вопросы («А вы знали, что...?»)
+Обещай конкретный результат.
+Используй интригу или запрет.
+Показывай противоречие («все делают не так»).
+Опирайся на личный опыт и выводы.
+Задавай вопросы, в которых читатель узнаёт себя.
 
-ПРИМЕРЫ ХОРОШИХ СЛАЙДОВ:
-- "<header>Почему 90% терпят крах</header>\n\n1. Делают всё сразу\n2. Нет системы\n3. Сдаются на старте"
-- "<accent>3 правила</accent> которые изменят всё:\n\n- Работайте 2 часа в день\n- Делегируйте рутину\n- Фокус на результат"
-- "Я потратил 5 лет на ошибки, чтобы вам не пришлось"
-- "<highlight>Главный секрет</highlight> успешных людей"
-- "<underline>Никогда не делайте</underline> это в понедельник"
-- "<quote>Лучшее время начать было 5 лет назад. Второе лучшее время — сейчас</quote>"
-- "<label>ВАЖНО</label> Прочтите до конца!"
+ОФОРМЛЕНИЕ И ФОРМАТИРОВАНИЕ (ИСПОЛЬЗУЙ ОСОЗНАННО):
+Доступные теги:
+<header>текст</header> — главный тезис или конфликт слайда.
+<bold>текст</bold> — 1–2 слова для усиления давления или выгоды.
+<accent>текст</accent> — цифры, факты, конкретный результат.
+<underline>текст</underline> — редкий акцент для жёстких запретов или критических ошибок.
+<highlight>текст</highlight> — ключевой инсайт слайда.
+<quote>текст</quote> — мысль-вывод или сильная формулировка.
+<label>текст</label> — контекстная бирка (Важно Ошибка Секрет), всегда отдельной строкой, основной текст на следующей строке.
+
+Списки:
+Нумерованные 1., 2., 3. — для последовательностей.
+Маркированные -, * — для перечислений.
+Стрелки и декоративные символы не использовать.
+
+ЛОГИКА ИСПОЛЬЗОВАНИЯ ОФОРМЛЕНИЯ:
+Оформление — не декор. Если смысл читается без тега, тег не нужен.
+Перед добавлением тега задай себе вопрос: что именно я усиливаю — внимание, конфликт, выгоду или инсайт?
+На одном слайде допускается 0–1 основной тег, максимум 2 в исключительных случаях.
+Не повторяй один и тот же тег на соседних слайдах.
+Слайды без тегов — нормальный и правильный вариант.
+Если убрать все теги, текст должен остаться сильным; теги должны усиливать, а не шуметь.
 
 ЧЕГО ИЗБЕГАТЬ:
-- Воды и общих фраз
-- Профессионального жаргона без объяснений
-- Слишком длинных абзацев
-- Избытка выделений и тегов
-- Капса и многоточий (!!!)
+Воды и общих фраз.
+Профессионального жаргона без объяснений.
+Длинных абзацев.
+Избыточного оформления.
+Капса и многоточий.
 
-ОТВЕТ ДОЛЖЕН БЫТЬ:
-- Валидным JSON (проверь синтаксис!)
-- Без markdown-разметки (тройные обратные кавычки с json и т.д.)
-- Без пояснений перед или после JSON
-- Только поле "title" и массив "slides"
-
-Тема: ${topic}`;
+ТЕМА: ${topic}`;
       }
 
       function applyStateFromInputs() {
         state.mode = modeSelect.value || "carousel";
         state.size = parseSize(sizeSelect.value);
         state.fontFamily = fontSelect.value || "Manrope";
+        state.typographyPreset = typographySelect.value || "balanced";
         const activeLayout = layoutPicker.querySelector(".chip.active")?.getAttribute("data-layout") || "line";
         const activePalette = colorPicker.querySelector(".chip.active")?.getAttribute("data-palette") || "midnight";
         const activeUnderlay = underlayPicker.querySelector(".chip.active")?.getAttribute("data-underlay") || "white";
@@ -3969,6 +4090,13 @@
       });
 
       fontSelect.addEventListener("change", () => {
+        if (state.title || state.slides.length) {
+          applyStateFromInputs();
+          renderPreviews();
+        }
+      });
+
+      typographySelect.addEventListener("change", () => {
         if (state.title || state.slides.length) {
           applyStateFromInputs();
           renderPreviews();
@@ -4233,4 +4361,4 @@
     </script>
   </body>
 </html>
-// Deployed: четверг, 12 февраля 2026 г. 18:30:00 (MSK)
+// Deployed: суббота, 14 февраля 2026 г. 02:00:00 (MSK)
