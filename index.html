@@ -1246,6 +1246,7 @@
               <option value="none">Без подложки</option>
               <option value="line" selected>Под каждую строку</option>
               <option value="card">Сплошная карточка</option>
+              <option value="highlight">Как highlight</option>
             </select>
           </label>
         </div>
@@ -2992,6 +2993,22 @@
             ctx.fill();
           }
 
+          // Draw highlight-style underlay (like highlight in regular slides)
+          if (needsUnderlay && state.textUnderlay === "highlight") {
+            const lineWidth = line.width;
+            const highlightPaddingX = Math.max(4, Math.round(linePaddingX * 0.3));
+            const highlightPaddingY = Math.max(2, Math.round(linePaddingY * 0.3));
+            const rectW = lineWidth + highlightPaddingX * 2;
+            const rectH = lineHeight + highlightPaddingY * 2;
+            const rectX = marginX - highlightPaddingX;
+            const rectY = y - highlightPaddingY;
+            // Use accent color with opacity, similar to highlight in regular slides
+            ctx.fillStyle = accent + "30";
+            ctx.beginPath();
+            ctx.roundRect(rectX, rectY, rectW, rectH, 4);
+            ctx.fill();
+          }
+
           let x = marginX;
           // Check if this line has header
           const hasHeader = line.words.some(w => w.mode === "header");
@@ -3835,7 +3852,7 @@ Cover — сильный заголовок с интригой или пров�
 <underline>текст</underline> — редкий акцент для жёстких запретов или критических ошибок.
 <highlight>текст</highlight> — ключевой инсайт слайда.
 <quote>текст</quote> — мысль-вывод или сильная формулировка.
-<label>текст</label> — контекстная бирка (Важно Ошибка Секрет), всегда отдельной строкой, основной текст на следующей строке. Пиши текст label обычным регистром, не используй капс.
+<label>текст</label> — контекстная бирка или заголовок раздела. Используй для: маркировки важности (Важно, Ошибка, Секрет), нумерации тем (Тема 1, Тема 2), обозначения примеров (Пример 1, Пример 2), выделения ключевых разделов. Всегда отдельной строкой, основной текст на следующей строке. Пиши текст label обычным регистром, не используй капс.
 
 Списки:
 Нумерованные 1., 2., 3. — для последовательностей.
@@ -4383,4 +4400,4 @@ Cover — сильный заголовок с интригой или пров�
     </script>
   </body>
 </html>
-// Deployed: суббота, 14 февраля 2026 г. 04:00:00 (MSK)
+// Deployed: суббота, 14 февраля 2026 г. 05:00:00 (MSK)
