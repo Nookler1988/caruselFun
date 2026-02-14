@@ -2993,7 +2993,7 @@
             ctx.fill();
           }
 
-          // Draw highlight-style underlay (like highlight in regular slides)
+            // Draw highlight-style underlay (like highlight in regular slides)
           if (needsUnderlay && state.textUnderlay === "highlight") {
             const lineWidth = line.width;
             const highlightPaddingX = Math.max(4, Math.round(linePaddingX * 0.3));
@@ -3002,8 +3002,8 @@
             const rectH = lineHeight + highlightPaddingY * 2;
             const rectX = marginX - highlightPaddingX;
             const rectY = y - highlightPaddingY;
-            // Use accent color with opacity, similar to highlight in regular slides
-            ctx.fillStyle = accent + "30";
+            // Use underlay color from color picker
+            ctx.fillStyle = underlay.color;
             ctx.beginPath();
             ctx.roundRect(rectX, rectY, rectW, rectH, 4);
             ctx.fill();
@@ -4400,4 +4400,4 @@ Cover — сильный заголовок с интригой или пров�
     </script>
   </body>
 </html>
-// Deployed: суббота, 14 февраля 2026 г. 05:00:00 (MSK)
+// Deployed: суббота, 14 февраля 2026 г. 06:00:00 (MSK)
