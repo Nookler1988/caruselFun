@@ -1236,6 +1236,8 @@
             Положение заголовка:
             <select id="titlePositionSelect" style="min-width: 140px;">
               <option value="center" selected>По центру</option>
+              <option value="top">Вверху</option>
+              <option value="bottom">Внизу</option>
               <option value="bottom-left">Внизу слева</option>
               <option value="top-left">Вверху слева</option>
             </select>
@@ -2900,6 +2902,13 @@
           } else if (state.titlePosition === "top-left") {
             // Position at top left
             y = h * 0.12;
+          } else if (state.titlePosition === "top") {
+            // Position at top center
+            y = h * 0.12;
+          } else if (state.titlePosition === "bottom") {
+            // Position at bottom center with some padding from footer
+            const footerSafe = Math.max(60, Math.round(h * 0.12));
+            y = h - footerSafe - blockHeight;
           } else {
             // Default center
             y = marginY + (maxHeight - blockHeight) / 2;
@@ -4400,4 +4409,4 @@ Cover — сильный заголовок с интригой или пров�
     </script>
   </body>
 </html>
-// Deployed: суббота, 14 февраля 2026 г. 06:00:00 (MSK)
+// Deployed: суббота, 14 февраля 2026 г. 06:15:00 (MSK)
