@@ -1991,7 +1991,8 @@
             const listItemContent = seg.text.slice(matchStart, itemEnd).trim();
             
             // Add line break before list item (except for the first one if there's no preceding text)
-            if (!isFirstItem || (matchStart > 0 && seg.text.slice(0, matchStart).trim())) {
+            // Always add line break if there's any text before this list item
+            if (!isFirstItem || matchStart > lastIndex) {
               processedSegments.push({
                 text: "__LINEBREAK__",
                 mode: "normal",
@@ -4409,4 +4410,4 @@ Cover — сильный заголовок с интригой или пров�
     </script>
   </body>
 </html>
-// Deployed: суббота, 14 февраля 2026 г. 06:15:00 (MSK)
+// Deployed: суббота, 14 февраля 2026 г. 06:30:00 (MSK)
